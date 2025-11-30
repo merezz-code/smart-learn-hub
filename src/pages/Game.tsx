@@ -1,259 +1,164 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { MemoryGame } from '@/components/games/MemoryGame';
+import { WordScrambleGame } from '@/components/games/WordScrambleGame';
+import { ScenarioGame } from '@/components/games/ScenarioGame';
+import { TypingGame } from '@/components/games/TypingGame';
 import { 
-  Trophy, 
-  Clock, 
-  RotateCcw, 
-  Zap,
-  Target,
-  Star
+  Grid3X3, 
+  Type, 
+  GitBranch, 
+  Keyboard,
+  ArrowLeft
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-interface Tile {
-  id: number;
-  value: number;
-  isFlipped: boolean;
-  isMatched: boolean;
-}
-
-const emojis = ['🐍', '🤖', '💻', '📊', '🧠', '🎯', '⚡', '🔥'];
+const games = [
+  {
+    id: 'memory',
+    name: 'Memory',
+    description: 'Trouvez les paires d\'icônes tech',
+    icon: Grid3X3,
+    color: 'text-primary',
+    bgColor: 'bg-primary/10'
+  },
+  {
+    id: 'scramble',
+    name: 'Mots Mélangés',
+    description: 'Devinez les termes techniques',
+    icon: Type,
+    color: 'text-accent',
+    bgColor: 'bg-accent/10'
+  },
+  {
+    id: 'scenario',
+    name: 'Cyber Scénario',
+    description: 'Gérez une crise de sécurité',
+    icon: GitBranch,
+    color: 'text-success',
+    bgColor: 'bg-success/10'
+  },
+  {
+    id: 'typing',
+    name: 'Code Typing',
+    description: 'Tapez du code rapidement',
+    icon: Keyboard,
+    color: 'text-warning',
+    bgColor: 'bg-warning/10'
+  }
+];
 
 export default function Game() {
   const { isAuthenticated } = useAuth();
-  const [tiles, setTiles] = useState<Tile[]>([]);
-  const [flippedTiles, setFlippedTiles] = useState<number[]>([]);
-  const [moves, setMoves] = useState(0);
-  const [matchedPairs, setMatchedPairs] = useState(0);
-  const [gameStarted, setGameStarted] = useState(false);
-  const [gameComplete, setGameComplete] = useState(false);
-  const [time, setTime] = useState(0);
-  const [bestScore, setBestScore] = useState<number | null>(null);
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  const initializeGame = useCallback(() => {
-    const shuffledTiles: Tile[] = [];
-    const values = [...Array(8).keys()];
-    const pairs = [...values, ...values];
-    
-    // Fisher-Yates shuffle
-    for (let i = pairs.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  const renderGame = () => {
+    switch (selectedGame) {
+      case 'memory':
+        return <MemoryGame />;
+      case 'scramble':
+        return <WordScrambleGame />;
+      case 'scenario':
+        return <ScenarioGame />;
+      case 'typing':
+        return <TypingGame />;
+      default:
+        return null;
     }
-
-    pairs.forEach((value, index) => {
-      shuffledTiles.push({
-        id: index,
-        value,
-        isFlipped: false,
-        isMatched: false,
-      });
-    });
-
-    setTiles(shuffledTiles);
-    setFlippedTiles([]);
-    setMoves(0);
-    setMatchedPairs(0);
-    setGameComplete(false);
-    setTime(0);
-    setGameStarted(true);
-  }, []);
-
-  useEffect(() => {
-    initializeGame();
-  }, [initializeGame]);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (gameStarted && !gameComplete) {
-      interval = setInterval(() => {
-        setTime(t => t + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [gameStarted, gameComplete]);
-
-  useEffect(() => {
-    if (matchedPairs === 8) {
-      setGameComplete(true);
-      const score = Math.max(1000 - (moves * 10) - (time * 2), 100);
-      
-      if (!bestScore || score > bestScore) {
-        setBestScore(score);
-        toast.success(`Nouveau record : ${score} points !`);
-      } else {
-        toast.success('Partie terminée !');
-      }
-    }
-  }, [matchedPairs, moves, time, bestScore]);
-
-  const handleTileClick = (tileId: number) => {
-    if (flippedTiles.length >= 2) return;
-    
-    const tile = tiles.find(t => t.id === tileId);
-    if (!tile || tile.isFlipped || tile.isMatched) return;
-
-    const newTiles = tiles.map(t => 
-      t.id === tileId ? { ...t, isFlipped: true } : t
-    );
-    setTiles(newTiles);
-    
-    const newFlipped = [...flippedTiles, tileId];
-    setFlippedTiles(newFlipped);
-
-    if (newFlipped.length === 2) {
-      setMoves(m => m + 1);
-      
-      const [firstId, secondId] = newFlipped;
-      const firstTile = newTiles.find(t => t.id === firstId);
-      const secondTile = newTiles.find(t => t.id === secondId);
-
-      if (firstTile && secondTile && firstTile.value === secondTile.value) {
-        // Match found
-        setTimeout(() => {
-          setTiles(prev => prev.map(t => 
-            t.id === firstId || t.id === secondId 
-              ? { ...t, isMatched: true }
-              : t
-          ));
-          setMatchedPairs(p => p + 1);
-          setFlippedTiles([]);
-        }, 500);
-      } else {
-        // No match
-        setTimeout(() => {
-          setTiles(prev => prev.map(t => 
-            t.id === firstId || t.id === secondId 
-              ? { ...t, isFlipped: false }
-              : t
-          ));
-          setFlippedTiles([]);
-        }, 1000);
-      }
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
     <Layout>
       <div className="section-padding">
-        <div className="container-custom max-w-2xl">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">
-              Memory <span className="gradient-text">Game</span>
-            </h1>
-            <p className="text-muted-foreground">
-              Trouvez toutes les paires pour gagner !
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="card-base p-4 text-center">
-              <Zap className="w-5 h-5 mx-auto mb-1 text-primary" />
-              <p className="text-2xl font-bold">{moves}</p>
-              <p className="text-xs text-muted-foreground">Coups</p>
-            </div>
-            <div className="card-base p-4 text-center">
-              <Clock className="w-5 h-5 mx-auto mb-1 text-accent" />
-              <p className="text-2xl font-bold">{formatTime(time)}</p>
-              <p className="text-xs text-muted-foreground">Temps</p>
-            </div>
-            <div className="card-base p-4 text-center">
-              <Target className="w-5 h-5 mx-auto mb-1 text-success" />
-              <p className="text-2xl font-bold">{matchedPairs}/8</p>
-              <p className="text-xs text-muted-foreground">Paires</p>
-            </div>
-          </div>
-
-          {/* Game Board */}
-          {gameComplete ? (
-            <div className="card-base p-8 text-center">
-              <div className="w-20 h-20 rounded-full bg-success/10 mx-auto mb-6 flex items-center justify-center">
-                <Trophy className="w-10 h-10 text-success" />
+        <div className="container-custom">
+          {selectedGame ? (
+            <>
+              {/* Back button and title */}
+              <div className="mb-8">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setSelectedGame(null)}
+                  className="mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour aux jeux
+                </Button>
+                <h1 className="text-3xl font-bold">
+                  {games.find(g => g.id === selectedGame)?.name}
+                </h1>
               </div>
-              <h2 className="text-2xl font-bold mb-2">Bravo ! 🎉</h2>
-              <p className="text-muted-foreground mb-6">
-                Vous avez terminé en {moves} coups et {formatTime(time)}
-              </p>
               
-              <div className="bg-muted/50 rounded-2xl p-6 mb-6">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Star className="w-6 h-6 text-warning fill-warning" />
-                  <span className="text-3xl font-bold gradient-text">
-                    {Math.max(1000 - (moves * 10) - (time * 2), 100)}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">points</p>
+              {renderGame()}
+
+              {/* Game Info */}
+              <div className="max-w-2xl mx-auto mt-8 p-4 rounded-xl bg-muted/50 border border-border">
+                <h3 className="font-semibold mb-2">Comment jouer ?</h3>
+                {selectedGame === 'memory' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Cliquez sur deux cartes pour les retourner</li>
+                    <li>• Si elles correspondent, elles restent visibles</li>
+                    <li>• Trouvez toutes les paires en un minimum de coups</li>
+                  </ul>
+                )}
+                {selectedGame === 'scramble' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Remettez les lettres dans l'ordre</li>
+                    <li>• Utilisez l'indice si vous êtes bloqué (-50 pts)</li>
+                    <li>• Les séries augmentent votre score</li>
+                  </ul>
+                )}
+                {selectedGame === 'scenario' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Lisez le scénario attentivement</li>
+                    <li>• Choisissez la meilleure action</li>
+                    <li>• Vos choix affectent le résultat final</li>
+                  </ul>
+                )}
+                {selectedGame === 'typing' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Tapez le code affiché le plus vite possible</li>
+                    <li>• La précision compte autant que la vitesse</li>
+                    <li>• MPM = Mots Par Minute</li>
+                  </ul>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Header */}
+              <div className="text-center mb-12">
+                <h1 className="text-3xl font-bold mb-2">
+                  Mini-Jeux <span className="gradient-text">Éducatifs</span>
+                </h1>
+                <p className="text-muted-foreground">
+                  Apprenez en vous amusant avec nos serious games
+                </p>
               </div>
 
-              {bestScore && (
-                <p className="text-sm text-muted-foreground mb-6">
-                  Meilleur score : {bestScore} points
-                </p>
-              )}
-
-              <Button onClick={initializeGame} size="lg">
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Rejouer
-              </Button>
-            </div>
-          ) : (
-            <div className="card-base p-6">
-              <div className="grid grid-cols-4 gap-3">
-                {tiles.map((tile) => (
+              {/* Games Grid */}
+              <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+                {games.map((game) => (
                   <button
-                    key={tile.id}
-                    onClick={() => handleTileClick(tile.id)}
-                    disabled={tile.isFlipped || tile.isMatched}
-                    className={`aspect-square rounded-xl text-3xl font-bold transition-all duration-300 transform ${
-                      tile.isFlipped || tile.isMatched
-                        ? 'gradient-bg rotate-0 scale-100'
-                        : 'bg-muted hover:bg-muted/80 hover:scale-105'
-                    } ${tile.isMatched ? 'opacity-50' : ''}`}
+                    key={game.id}
+                    onClick={() => setSelectedGame(game.id)}
+                    className="card-base p-6 text-left hover:border-primary/50 transition-all group"
                   >
-                    {(tile.isFlipped || tile.isMatched) && (
-                      <span className="animate-fade-in">{emojis[tile.value]}</span>
-                    )}
+                    <div className={`w-14 h-14 rounded-2xl ${game.bgColor} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                      <game.icon className={`w-7 h-7 ${game.color}`} />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">{game.name}</h3>
+                    <p className="text-muted-foreground">{game.description}</p>
                   </button>
                 ))}
               </div>
-            </div>
+            </>
           )}
-
-          {/* Restart Button */}
-          {!gameComplete && (
-            <div className="text-center mt-6">
-              <Button variant="outline" onClick={initializeGame}>
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Recommencer
-              </Button>
-            </div>
-          )}
-
-          {/* Game Info */}
-          <div className="mt-8 p-4 rounded-xl bg-muted/50 border border-border">
-            <h3 className="font-semibold mb-2">Comment jouer ?</h3>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Cliquez sur deux cartes pour les retourner</li>
-              <li>• Si elles correspondent, elles restent visibles</li>
-              <li>• Trouvez toutes les paires en un minimum de coups</li>
-              <li>• Votre score dépend du temps et du nombre de coups</li>
-            </ul>
-          </div>
         </div>
       </div>
     </Layout>
