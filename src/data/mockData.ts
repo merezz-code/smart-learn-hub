@@ -2,10 +2,10 @@ import { Course, Chapter, Quiz, UserProgress, EnrolledCourse, User } from '@/typ
 
 export const mockUser: User = {
   id: '1',
-  email: 'student@smartlearn.com',
+  email: 'admin@smartlearn.com',
   name: 'Alex Martin',
   avatar: undefined,
-  role: 'student',
+  role: 'admin',
   createdAt: new Date('2024-01-15'),
 };
 
