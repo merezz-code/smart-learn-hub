@@ -9,11 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { mockCourses, mockLearners, Learner } from '@/data/mockData';
+import { mockCourses } from '@/data/mockData';
 import { Course } from '@/types';
-import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus, Pencil, Trash2, BookOpen, Users, TrendingUp, DollarSign, Clock, Award, GraduationCap } from 'lucide-react';
+import { Plus, Pencil, Trash2, BookOpen, Users, TrendingUp, DollarSign } from 'lucide-react';
 
 const Admin = () => {
   const { toast } = useToast();
@@ -202,9 +200,8 @@ const Admin = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="bg-card/50 backdrop-blur-sm w-full sm:w-auto flex-wrap">
-              <TabsTrigger value="courses" className="flex-1 sm:flex-none">Cours</TabsTrigger>
-              <TabsTrigger value="users" className="flex-1 sm:flex-none">Utilisateurs</TabsTrigger>
+            <TabsList className="bg-card/50 backdrop-blur-sm w-full sm:w-auto">
+              <TabsTrigger value="courses" className="flex-1 sm:flex-none">Gestion des cours</TabsTrigger>
               <TabsTrigger value="add" className="flex-1 sm:flex-none">
                 {editingCourse ? 'Modifier' : 'Ajouter'}
               </TabsTrigger>
@@ -266,91 +263,6 @@ const Admin = () => {
                     </CardContent>
                   </Card>
                 ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="users" className="space-y-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="text-xl font-semibold text-foreground">Liste des apprenants</h2>
-                <div className="text-sm text-muted-foreground">
-                  {mockLearners.length} utilisateurs inscrits
-                </div>
-              </div>
-
-              <div className="grid gap-4">
-                {mockLearners.map((learner) => {
-                  const progressPercent = Math.round((learner.completedLessons / learner.totalLessons) * 100);
-                  const hoursSpent = Math.round(learner.totalTimeSpent / 60);
-                  
-                  return (
-                    <Card key={learner.id} className="bg-card/50 backdrop-blur-sm border-border/50">
-                      <CardContent className="p-4 sm:p-6">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          {/* Avatar & Info */}
-                          <div className="flex items-start gap-4 flex-1">
-                            <Avatar className="w-12 h-12 sm:w-14 sm:h-14">
-                              <AvatarImage src={learner.avatar} alt={learner.name} />
-                              <AvatarFallback className="bg-primary/20 text-primary font-semibold">
-                                {learner.name.split(' ').map(n => n[0]).join('')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-foreground">{learner.name}</h3>
-                              <p className="text-sm text-muted-foreground truncate">{learner.email}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Inscrit le {learner.joinedAt.toLocaleDateString('fr-FR')}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Stats Grid */}
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                            <div className="text-center p-2 rounded-lg bg-primary/10">
-                              <GraduationCap className="w-4 h-4 mx-auto text-primary mb-1" />
-                              <p className="text-lg font-bold text-foreground">{learner.completedCourses}/{learner.enrolledCourses}</p>
-                              <p className="text-xs text-muted-foreground">Cours terminés</p>
-                            </div>
-                            <div className="text-center p-2 rounded-lg bg-secondary/10">
-                              <BookOpen className="w-4 h-4 mx-auto text-secondary mb-1" />
-                              <p className="text-lg font-bold text-foreground">{learner.completedLessons}</p>
-                              <p className="text-xs text-muted-foreground">Leçons</p>
-                            </div>
-                            <div className="text-center p-2 rounded-lg bg-accent/10">
-                              <TrendingUp className="w-4 h-4 mx-auto text-accent mb-1" />
-                              <p className="text-lg font-bold text-foreground">{learner.averageQuizScore}%</p>
-                              <p className="text-xs text-muted-foreground">Score quiz</p>
-                            </div>
-                            <div className="text-center p-2 rounded-lg bg-muted">
-                              <Clock className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
-                              <p className="text-lg font-bold text-foreground">{hoursSpent}h</p>
-                              <p className="text-xs text-muted-foreground">Temps total</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="mt-4 space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Progression globale</span>
-                            <span className="font-medium text-foreground">{progressPercent}%</span>
-                          </div>
-                          <Progress value={progressPercent} className="h-2" />
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-border/50">
-                          <div className="flex items-center gap-2">
-                            <Award className="w-4 h-4 text-yellow-500" />
-                            <span className="text-sm text-muted-foreground">{learner.badges} badges</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Dernière activité: {learner.lastActive.toLocaleDateString('fr-FR')}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
               </div>
             </TabsContent>
 
