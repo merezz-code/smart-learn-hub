@@ -9,7 +9,8 @@ import {
   Menu, 
   X,
   Gamepad2,
-  MessageCircle
+  MessageCircle,
+  Settings
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -63,6 +64,14 @@ export function Navbar() {
                     Assistant IA
                   </Button>
                 </Link>
+                {user?.role === 'admin' && (
+                  <Link to="/admin">
+                    <Button variant="ghost" className="gap-2">
+                      <Settings className="w-4 h-4" />
+                      Admin
+                    </Button>
+                  </Link>
+                )}
               </>
             )}
           </div>
@@ -130,6 +139,14 @@ export function Navbar() {
                       Assistant IA
                     </Button>
                   </Link>
+                  {user?.role === 'admin' && (
+                    <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2">
+                        <Settings className="w-4 h-4" />
+                        Admin
+                      </Button>
+                    </Link>
+                  )}
                 </>
               )}
               <div className="border-t border-border pt-2 mt-2">
