@@ -16,8 +16,8 @@ import { Plus, Pencil, Trash2, BookOpen, Users, TrendingUp, DollarSign } from 'l
 const Admin = () => {
   const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>(mockCourses);
-  const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [activeTab, setActiveTab] = useState('courses');
   
   const [formData, setFormData] = useState({
     title: '',
@@ -45,10 +45,10 @@ const Admin = () => {
       price: 0,
       isFree: true,
       tags: '',
-      thumbnail: 'https://images.unsplash.com/photo-321318423-f06f85e504b3?w=800',
+      thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800',
     });
-    setIsAddingCourse(false);
     setEditingCourse(null);
+    setActiveTab('courses');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -113,7 +113,7 @@ const Admin = () => {
       tags: course.tags.join(', '),
       thumbnail: course.thumbnail,
     });
-    setIsAddingCourse(true);
+    setActiveTab('add');
   };
 
   const handleDelete = (courseId: string) => {
@@ -199,16 +199,18 @@ const Admin = () => {
             </Card>
           </div>
 
-          <Tabs defaultValue="courses" className="space-y-6">
-            <TabsList className="bg-card/50 backdrop-blur-sm">
-              <TabsTrigger value="courses">Gestion des cours</TabsTrigger>
-              <TabsTrigger value="add">Ajouter un cours</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="bg-card/50 backdrop-blur-sm w-full sm:w-auto">
+              <TabsTrigger value="courses" className="flex-1 sm:flex-none">Gestion des cours</TabsTrigger>
+              <TabsTrigger value="add" className="flex-1 sm:flex-none">
+                {editingCourse ? 'Modifier' : 'Ajouter'}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="courses" className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="text-xl font-semibold text-foreground">Liste des cours</h2>
-                <Button onClick={() => setIsAddingCourse(true)} className="gap-2">
+                <Button onClick={() => { resetForm(); setActiveTab('add'); }} className="gap-2 w-full sm:w-auto">
                   <Plus className="w-4 h-4" />
                   Nouveau cours
                 </Button>
@@ -218,44 +220,44 @@ const Admin = () => {
                 {courses.map((course) => (
                   <Card key={course.id} className="bg-card/50 backdrop-blur-sm border-border/50">
                     <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                         <img 
                           src={course.thumbnail} 
                           alt={course.title}
-                          className="w-24 h-16 object-cover rounded-lg"
+                          className="w-full sm:w-24 h-32 sm:h-16 object-cover rounded-lg"
                         />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-foreground truncate">{course.title}</h3>
-                          <p className="text-sm text-muted-foreground truncate">{course.description}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline">{course.category}</Badge>
-                            <Badge variant={course.level === 'beginner' ? 'default' : course.level === 'intermediate' ? 'secondary' : 'destructive'}>
+                          <h3 className="font-semibold text-foreground">{course.title}</h3>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <Badge variant="outline" className="text-xs">{course.category}</Badge>
+                            <Badge variant={course.level === 'beginner' ? 'default' : course.level === 'intermediate' ? 'secondary' : 'destructive'} className="text-xs">
                               {course.level === 'beginner' ? 'Débutant' : course.level === 'intermediate' ? 'Intermédiaire' : 'Avancé'}
                             </Badge>
                             {course.isFree ? (
-                              <Badge className="bg-green-500/20 text-green-600">Gratuit</Badge>
+                              <Badge className="bg-green-500/20 text-green-600 text-xs">Gratuit</Badge>
                             ) : (
-                              <Badge variant="outline">{course.price}€</Badge>
+                              <Badge variant="outline" className="text-xs">{course.price}€</Badge>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center justify-between sm:justify-start gap-4 text-sm text-muted-foreground border-t sm:border-t-0 pt-3 sm:pt-0">
                           <div className="text-center">
                             <p className="font-semibold text-foreground">{course.enrolledCount}</p>
-                            <p>inscrits</p>
+                            <p className="text-xs">inscrits</p>
                           </div>
                           <div className="text-center">
                             <p className="font-semibold text-foreground">{course.rating}</p>
-                            <p>note</p>
+                            <p className="text-xs">note</p>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="icon" onClick={() => handleEdit(course)}>
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button variant="outline" size="icon" onClick={() => handleDelete(course.id)}>
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" onClick={() => handleEdit(course)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => handleDelete(course.id)}>
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -381,15 +383,13 @@ const Admin = () => {
                       </div>
                     </div>
                     
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
                       <Button type="submit" className="flex-1">
                         {editingCourse ? 'Mettre à jour' : 'Créer le cours'}
                       </Button>
-                      {(isAddingCourse || editingCourse) && (
-                        <Button type="button" variant="outline" onClick={resetForm}>
-                          Annuler
-                        </Button>
-                      )}
+                      <Button type="button" variant="outline" onClick={resetForm}>
+                        Annuler
+                      </Button>
                     </div>
                   </form>
                 </CardContent>
