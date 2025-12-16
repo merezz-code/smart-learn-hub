@@ -1,46 +1,115 @@
-import { useState, useMemo } from 'react';
+// src/pages/Courses.tsx
+import { useState, useMemo, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { CourseCard } from '@/components/courses/CourseCard';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { mockCourses, categories } from '@/data/mockData';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { CourseFilters } from '@/components/courses/CourseFilters';
+import { Loader2 } from 'lucide-react';
+import { Course, CourseFilters as IFilters } from '@/types/course';
+import { courseService } from '@/lib/courseService';
+import { toast } from 'sonner';
 
 export default function Courses() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Tous');
-  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const [showFreeOnly, setShowFreeOnly] = useState(false);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<IFilters>({
+    search: '',
+    sortBy: 'recent',
+    sortOrder: 'desc',
+  });
 
-  const levels = [
-    { value: 'beginner', label: 'Débutant' },
-    { value: 'intermediate', label: 'Intermédiaire' },
-    { value: 'advanced', label: 'Avancé' },
-  ];
+  // Charger les cours au montage
+  useEffect(() => {
+    loadCourses();
+  }, []);
 
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+      const data = await courseService.getAllCourses();
+      setCourses(data);
+    } catch (error) {
+      console.error('Erreur chargement cours:', error);
+      toast.error('Impossible de charger les cours');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtrage et tri des cours
   const filteredCourses = useMemo(() => {
-    return mockCourses.filter((course) => {
-      // Search filter
-      const matchesSearch = 
-        course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        course.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        course.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    let result = [...courses];
 
-      // Category filter
-      const matchesCategory = 
-        selectedCategory === 'Tous' || course.category === selectedCategory;
+    // Filtre de recherche
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      result = result.filter(course =>
+        course.title.toLowerCase().includes(searchLower) ||
+        course.description.toLowerCase().includes(searchLower) ||
+        course.shortDescription?.toLowerCase().includes(searchLower)
+      );
+    }
 
-      // Level filter
-      const matchesLevel = 
-        !selectedLevel || course.level === selectedLevel;
+    // Filtre catégorie
+    if (filters.category) {
+      result = result.filter(course => course.category === filters.category);
+    }
 
-      // Price filter
-      const matchesPrice = 
-        !showFreeOnly || course.isFree;
+    // Filtre niveau
+    if (filters.level) {
+      result = result.filter(course => course.level === filters.level);
+    }
 
-      return matchesSearch && matchesCategory && matchesLevel && matchesPrice;
+    // Filtre durée
+    if (filters.minDuration) {
+      result = result.filter(course => course.duration >= filters.minDuration!);
+    }
+    if (filters.maxDuration) {
+      result = result.filter(course => course.duration <= filters.maxDuration!);
+    }
+
+    // Filtre note
+    if (filters.minRating) {
+      result = result.filter(course => 
+        course.rating && course.rating >= filters.minRating!
+      );
+    }
+
+    // Filtre prix
+    if (filters.priceRange) {
+      result = result.filter(course => 
+        course.price >= filters.priceRange!.min &&
+        course.price <= filters.priceRange!.max
+      );
+    }
+
+    // Tri
+    result.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (filters.sortBy) {
+        case 'title':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'rating':
+          comparison = (b.rating || 0) - (a.rating || 0);
+          break;
+        case 'duration':
+          comparison = a.duration - b.duration;
+          break;
+        case 'popular':
+          comparison = (b.studentsCount || 0) - (a.studentsCount || 0);
+          break;
+        case 'recent':
+        default:
+          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          break;
+      }
+
+      return filters.sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [searchQuery, selectedCategory, selectedLevel, showFreeOnly]);
+
+    return result;
+  }, [courses, filters]);
 
   return (
     <Layout>
@@ -52,95 +121,45 @@ export default function Courses() {
               Explorer les <span className="gradient-text">cours</span>
             </h1>
             <p className="text-muted-foreground">
-              Découvrez notre catalogue de {mockCourses.length} cours
+              Découvrez notre catalogue de {courses.length} cours
             </p>
           </div>
 
-          {/* Search and Filters */}
-          <div className="mb-8 space-y-4">
-            {/* Search Bar */}
-            <div className="relative max-w-xl">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Rechercher un cours, un sujet..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12"
-              />
-            </div>
-
-            {/* Category Filters */}
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category)}
-                >
-                  {category}
-                </Button>
-              ))}
-            </div>
-
-            {/* Additional Filters */}
-            <div className="flex flex-wrap gap-2">
-              {levels.map((level) => (
-                <Button
-                  key={level.value}
-                  variant={selectedLevel === level.value ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setSelectedLevel(
-                    selectedLevel === level.value ? null : level.value
-                  )}
-                >
-                  {level.label}
-                </Button>
-              ))}
-              <Button
-                variant={showFreeOnly ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setShowFreeOnly(!showFreeOnly)}
-              >
-                Gratuit uniquement
-              </Button>
-            </div>
+          {/* Filters */}
+          <div className="mb-8">
+            <CourseFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              totalResults={filteredCourses.length}
+            />
           </div>
 
-          {/* Results Count */}
-          <p className="text-sm text-muted-foreground mb-6">
-            {filteredCourses.length} cours trouvé{filteredCourses.length > 1 ? 's' : ''}
-          </p>
-
-          {/* Course Grid */}
-          {filteredCourses.length > 0 ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCourses.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
+          {/* Loading State */}
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <Search className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Aucun cours trouvé</h3>
-              <p className="text-muted-foreground mb-4">
-                Essayez de modifier vos critères de recherche
-              </p>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('Tous');
-                  setSelectedLevel(null);
-                  setShowFreeOnly(false);
-                }}
-              >
-                Réinitialiser les filtres
-              </Button>
-            </div>
+            <>
+              {/* Course Grid */}
+              {filteredCourses.length > 0 ? (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredCourses.map((course) => (
+                    <CourseCard key={course.id} course={course} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">🔍</span>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Aucun cours trouvé</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Essayez de modifier vos critères de recherche
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -1,114 +1,65 @@
+// src/pages/Index.tsx - VERSION SIMPLE SANS ERREURS
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Layout } from '@/components/layout/Layout';
-import { CourseCard } from '@/components/courses/CourseCard';
-import { mockCourses } from '@/data/mockData';
-import { 
-  GraduationCap, 
-  Brain, 
-  Gamepad2, 
-  MessageCircle, 
-  TrendingUp,
-  CheckCircle,
-  ArrowRight,
-  Sparkles,
-  Users,
-  Award
-} from 'lucide-react';
-
-const features = [
-  {
-    icon: Brain,
-    title: 'Assistant IA Intelligent',
-    description: 'Posez vos questions et obtenez des réponses précises basées sur vos cours grâce au RAG.',
-  },
-  {
-    icon: Gamepad2,
-    title: 'Mini-jeux Éducatifs',
-    description: 'Apprenez en vous amusant avec des jeux interactifs qui renforcent vos connaissances.',
-  },
-  {
-    icon: TrendingUp,
-    title: 'Suivi de Progression',
-    description: 'Visualisez vos progrès avec des statistiques détaillées et gagnez des badges.',
-  },
-  {
-    icon: MessageCircle,
-    title: 'Contenu Interactif',
-    description: 'Vidéos, textes, PDFs et quiz pour un apprentissage complet et varié.',
-  },
-];
-
-const stats = [
-  { value: '10K+', label: 'Étudiants actifs' },
-  { value: '500+', label: 'Cours disponibles' },
-  { value: '95%', label: 'Taux de satisfaction' },
-  { value: '24/7', label: 'Support IA' },
-];
 
 export default function Index() {
-  const featuredCourses = mockCourses.slice(0, 3);
-
   return (
-    <Layout>
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        {/* Background */}
-        <div className="absolute inset-0 gradient-hero-bg" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(252_87%_64%_/_0.15),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,hsl(200_95%_55%_/_0.1),transparent_50%)]" />
-        
-        <div className="container-custom relative">
-          <div className="min-h-[calc(100vh-4rem)] flex flex-col justify-center py-20">
-            <div className="max-w-3xl">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6 animate-fade-in">
-                <Sparkles className="w-4 h-4" />
-                <span>Plateforme e-learning propulsée par l'IA</span>
-              </div>
-
-              {/* Heading */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 animate-slide-up">
-                Apprenez plus <span className="gradient-text">intelligemment</span>,
-                <br />pas plus dur
+      <section className="py-20 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Column */}
+            <div>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
+                Apprenez à votre{' '}
+                <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                  rythme
+                </span>
               </h1>
-
-              {/* Description */}
-              <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl animate-slide-up stagger-1">
-                SmartLearn combine cours interactifs, mini-jeux éducatifs et un assistant IA 
-                intelligent pour une expérience d'apprentissage personnalisée et efficace.
+              <p className="text-xl text-muted-foreground mb-8">
+                Une plateforme e-learning moderne avec des cours interactifs,
+                des serious games et un chatbot IA pour vous accompagner.
               </p>
-
-              {/* CTAs */}
-              <div className="flex flex-wrap gap-4 mb-12 animate-slide-up stagger-2">
-                <Link to="/register">
-                  <Button variant="hero" size="xl">
-                    Commencer gratuitement
-                    <ArrowRight className="w-5 h-5" />
+              <div className="flex flex-wrap gap-4">
+                <Link to="/courses">
+                  <Button size="lg">
+                    Explorer les cours →
                   </Button>
                 </Link>
-                <Link to="/courses">
-                  <Button variant="outline" size="xl">
-                    Explorer les cours
+                <Link to="/register">
+                  <Button size="lg" variant="outline">
+                    Créer un compte
                   </Button>
                 </Link>
               </div>
+            </div>
 
-              {/* Social Proof */}
-              <div className="flex items-center gap-4 animate-slide-up stagger-3">
-                <div className="flex -space-x-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="w-10 h-10 rounded-full border-2 border-background gradient-bg flex items-center justify-center text-primary-foreground text-xs font-bold"
-                    >
-                      {String.fromCharCode(64 + i)}
-                    </div>
-                  ))}
+            {/* Right Column */}
+            <div className="relative">
+              <div className="aspect-square rounded-3xl bg-gradient-to-br from-primary/20 to-purple-600/20 flex items-center justify-center">
+                <div className="text-8xl">🎓</div>
+              </div>
+              
+              {/* Floating Card 1 */}
+              <div className="absolute -top-4 -right-4 bg-card border border-border rounded-lg p-4 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">⭐</span>
+                  <div>
+                    <p className="text-2xl font-bold">4.9/5</p>
+                    <p className="text-xs text-muted-foreground">Note moyenne</p>
+                  </div>
                 </div>
-                <div className="text-sm">
-                  <p className="font-semibold">+10,000 étudiants</p>
-                  <p className="text-muted-foreground">nous font confiance</p>
+              </div>
+
+              {/* Floating Card 2 */}
+              <div className="absolute -bottom-4 -left-4 bg-card border border-border rounded-lg p-4 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">👥</span>
+                  <div>
+                    <p className="text-2xl font-bold">10K+</p>
+                    <p className="text-xs text-muted-foreground">Étudiants</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -118,143 +69,199 @@ export default function Index() {
 
       {/* Stats Section */}
       <section className="py-12 border-y border-border bg-muted/30">
-        <div className="container-custom">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <p className="text-3xl sm:text-4xl font-bold gradient-text mb-1">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            ))}
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <p className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent mb-2">
+                50+
+              </p>
+              <p className="text-muted-foreground">Cours disponibles</p>
+            </div>
+            <div className="text-center">
+              <p className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent mb-2">
+                10K+
+              </p>
+              <p className="text-muted-foreground">Étudiants actifs</p>
+            </div>
+            <div className="text-center">
+              <p className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent mb-2">
+                5K+
+              </p>
+              <p className="text-muted-foreground">Certificats délivrés</p>
+            </div>
+            <div className="text-center">
+              <p className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent mb-2">
+                98%
+              </p>
+              <p className="text-muted-foreground">Taux de satisfaction</p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="section-padding">
-        <div className="container-custom">
+      <section className="py-20 px-4">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
           <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Pourquoi choisir <span className="gradient-text">SmartLearn</span> ?
+              Tout ce dont vous avez besoin pour{' '}
+              <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                réussir
+              </span>
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Une plateforme complète qui s'adapte à votre façon d'apprendre
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Une plateforme complète avec toutes les fonctionnalités nécessaires
+              pour votre apprentissage
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
-              <div 
-                key={index} 
-                className="card-base p-6 text-center hover:shadow-lg transition-all duration-300"
-              >
-                <div className="w-14 h-14 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-4">
-                  <feature.icon className="w-7 h-7 text-primary-foreground" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.description}</p>
+          {/* Features Grid */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Feature 1 */}
+            <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4">
+                <span className="text-3xl">📚</span>
               </div>
-            ))}
+              <h3 className="text-xl font-semibold mb-2">Cours interactifs</h3>
+              <p className="text-muted-foreground">
+                Apprenez avec des cours structurés et progressifs
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-green-500/10 flex items-center justify-center mb-4">
+                <span className="text-3xl">🎓</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Certificats</h3>
+              <p className="text-muted-foreground">
+                Obtenez des certificats de réussite
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-yellow-500/10 flex items-center justify-center mb-4">
+                <span className="text-3xl">🏆</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Badges & Récompenses</h3>
+              <p className="text-muted-foreground">
+                Gagnez des badges en progressant
+              </p>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-purple-500/10 flex items-center justify-center mb-4">
+                <span className="text-3xl">🎮</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Serious Games</h3>
+              <p className="text-muted-foreground">
+                Apprenez en jouant avec nos mini-jeux
+              </p>
+            </div>
+
+            {/* Feature 5 */}
+            <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-pink-500/10 flex items-center justify-center mb-4">
+                <span className="text-3xl">💬</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Chatbot IA</h3>
+              <p className="text-muted-foreground">
+                Posez vos questions à notre assistant intelligent
+              </p>
+            </div>
+
+            {/* Feature 6 */}
+            <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-orange-500/10 flex items-center justify-center mb-4">
+                <span className="text-3xl">📊</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Suivi progression</h3>
+              <p className="text-muted-foreground">
+                Suivez votre évolution en temps réel
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Featured Courses Section */}
-      <section className="section-padding bg-muted/30">
-        <div className="container-custom">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-bold mb-2">Cours populaires</h2>
-              <p className="text-muted-foreground">Commencez votre parcours d'apprentissage</p>
+      {/* How it works */}
+      <section className="py-20 px-4 bg-muted/30">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Comment ça marche ?
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Commencez votre parcours d'apprentissage en 3 étapes simples
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {/* Step 1 */}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-2xl font-bold flex items-center justify-center mx-auto mb-4">
+                1
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Créez votre compte</h3>
+              <p className="text-muted-foreground">
+                Inscrivez-vous gratuitement en quelques secondes
+              </p>
             </div>
-            <Link to="/courses">
-              <Button variant="outline" className="hidden sm:flex">
-                Voir tous les cours
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredCourses.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
+            {/* Step 2 */}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-2xl font-bold flex items-center justify-center mx-auto mb-4">
+                2
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Choisissez vos cours</h3>
+              <p className="text-muted-foreground">
+                Explorez notre catalogue et inscrivez-vous aux cours qui vous intéressent
+              </p>
+            </div>
 
-          <div className="mt-8 text-center sm:hidden">
-            <Link to="/courses">
-              <Button variant="outline">
-                Voir tous les cours
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+            {/* Step 3 */}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground text-2xl font-bold flex items-center justify-center mx-auto mb-4">
+                3
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Apprenez et progressez</h3>
+              <p className="text-muted-foreground">
+                Suivez les leçons, passez les quiz et obtenez vos certificats
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="section-padding">
-        <div className="container-custom">
-          <div className="relative rounded-3xl overflow-hidden">
-            <div className="absolute inset-0 gradient-bg opacity-90" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,white/10,transparent_50%)]" />
-            
-            <div className="relative px-8 py-16 sm:px-16 sm:py-20 text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground mb-4">
-                Prêt à transformer votre apprentissage ?
-              </h2>
-              <p className="text-lg text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-                Rejoignez des milliers d'étudiants qui ont déjà accéléré leur progression avec SmartLearn.
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <Link to="/register">
-                  <Button 
-                    variant="secondary" 
-                    size="xl"
-                    className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
-                  >
-                    Créer un compte gratuit
-                    <ArrowRight className="w-5 h-5" />
-                  </Button>
-                </Link>
-              </div>
-              
-              {/* Benefits */}
-              <div className="flex flex-wrap justify-center gap-6 mt-8 text-primary-foreground/90">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Accès gratuit</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Sans carte bancaire</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Annulation facile</span>
-                </div>
-              </div>
+      <section className="py-20 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-gradient-to-br from-primary/10 to-purple-600/10 border border-border rounded-2xl p-12 text-center">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Prêt à commencer votre apprentissage ?
+            </h2>
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Rejoignez des milliers d'étudiants qui font confiance à notre plateforme
+              pour développer leurs compétences
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <Link to="/register">
+                <Button size="lg">
+                  Commencer gratuitement →
+                </Button>
+              </Link>
+              <Link to="/courses">
+                <Button size="lg" variant="outline">
+                  Voir les cours
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-12">
-        <div className="container-custom">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
-                <GraduationCap className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-bold gradient-text">SmartLearn</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              © 2024 SmartLearn. Tous droits réservés.
-            </p>
-          </div>
-        </div>
-      </footer>
-    </Layout>
+    </div>
   );
 }

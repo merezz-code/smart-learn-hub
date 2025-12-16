@@ -1,81 +1,156 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/Quiz.tsx
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { mockQuiz } from '@/data/mockData';
+import { QuizComponent } from '@/components/courses/QuizComponent';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircle, XCircle, ArrowRight, RotateCcw, Trophy } from 'lucide-react';
+import { RotateCcw, Trophy, XCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { Navigate } from 'react-router-dom';
+import { Quiz, UserAnswer } from '@/types/course';
+import { courseService } from '@/lib/courseService';
 
-export default function Quiz() {
-  const { isAuthenticated } = useAuth();
+export default function QuizPage() {
+  const { quizId } = useParams<{ quizId: string }>();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<number[]>([]);
+
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showResult, setShowResult] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
+  const [attemptNumber, setAttemptNumber] = useState(1);
+
+  useEffect(() => {
+    if (quizId) {
+      loadQuiz();
+    }
+  }, [quizId, user]);
+
+  const loadQuiz = async () => {
+    if (!quizId) return;
+
+    try {
+      setLoading(true);
+      const quizData = await courseService.getQuizById(quizId);
+      setQuiz(quizData);
+
+      // Charger les tentatives précédentes
+      if (user) {
+        const results = await courseService.getUserQuizResults(user.id, quizId);
+        setAttemptNumber(results.length + 1);
+      }
+    } catch (error) {
+      console.error('Erreur chargement quiz:', error);
+      toast.error('Impossible de charger le quiz');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuizComplete = async (finalScore: number, answers: UserAnswer[]) => {
+    if (!quiz || !user) return;
+
+    setScore(finalScore);
+    setUserAnswers(answers);
+    setShowResult(true);
+
+    // Sauvegarder les résultats
+    const totalPoints = answers.reduce((sum, a) => sum + a.pointsEarned, 0);
+    const maxPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
+    const passed = finalScore >= quiz.passingScore;
+
+    const result = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      quizId: quiz.id,
+      courseId: quiz.courseId,
+      score: finalScore,
+      points: totalPoints,
+      totalPoints: maxPoints,
+      passed,
+      attemptNumber,
+      answers,
+      startedAt: new Date(),
+      completedAt: new Date(),
+      timeSpent: 0, // TODO: calculer le temps réel
+    };
+
+    try {
+      await courseService.saveQuizResult(result);
+      
+      if (passed) {
+        toast.success('🎉 Quiz réussi ! Félicitations !');
+      } else {
+        toast.error(`Score insuffisant. Minimum requis: ${quiz.passingScore}%`);
+      }
+    } catch (error) {
+      console.error('Erreur sauvegarde résultats:', error);
+      toast.error('Erreur lors de la sauvegarde des résultats');
+    }
+  };
+
+  const handleRestart = () => {
+    setShowResult(false);
+    setScore(0);
+    setUserAnswers([]);
+    setAttemptNumber(attemptNumber + 1);
+  };
+
+  const handleBackToCourse = () => {
+    if (quiz?.courseId) {
+      navigate(`/course/${quiz.courseId}`);
+    } else {
+      navigate('/courses');
+    }
+  };
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  const quiz = mockQuiz;
-  const question = quiz.questions[currentQuestion];
-  const progress = ((currentQuestion + 1) / quiz.questions.length) * 100;
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
-  const handleSelectAnswer = (index: number) => {
-    if (!isSubmitted) {
-      setSelectedAnswer(index);
-    }
-  };
+  if (!quiz) {
+    return (
+      <Layout>
+        <div className="section-padding text-center">
+          <h1 className="text-2xl font-bold mb-4">Quiz non trouvé</h1>
+          <Button onClick={() => navigate(-1)}>Retour</Button>
+        </div>
+      </Layout>
+    );
+  }
 
-  const handleSubmitAnswer = () => {
-    if (selectedAnswer === null) {
-      toast.error('Sélectionnez une réponse');
-      return;
-    }
-
-    setIsSubmitted(true);
-    setAnswers([...answers, selectedAnswer]);
-  };
-
-  const handleNextQuestion = () => {
-    if (currentQuestion < quiz.questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(null);
-      setIsSubmitted(false);
-    } else {
-      setShowResult(true);
-    }
-  };
-
-  const calculateScore = () => {
-    return answers.reduce((score, answer, index) => {
-      return score + (answer === quiz.questions[index].correctAnswer ? 1 : 0);
-    }, 0);
-  };
-
-  const handleRestart = () => {
-    setCurrentQuestion(0);
-    setSelectedAnswer(null);
-    setAnswers([]);
-    setShowResult(false);
-    setIsSubmitted(false);
-  };
-
+  // Page des résultats
   if (showResult) {
-    const score = calculateScore();
-    const percentage = Math.round((score / quiz.questions.length) * 100);
-    const passed = percentage >= 60;
+    const passed = score >= quiz.passingScore;
+    const correctAnswers = userAnswers.filter(a => a.isCorrect).length;
 
     return (
       <Layout>
         <div className="section-padding">
           <div className="container-custom max-w-2xl">
+            {/* Back Button */}
+            <button
+              onClick={handleBackToCourse}
+              className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Retour au cours
+            </button>
+
             <div className="card-base p-8 text-center">
+              {/* Icon */}
               <div className={`w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center ${
                 passed ? 'bg-success/10' : 'bg-destructive/10'
               }`}>
@@ -86,31 +161,65 @@ export default function Quiz() {
                 )}
               </div>
 
+              {/* Title */}
               <h1 className="text-3xl font-bold mb-2">
                 {passed ? 'Félicitations ! 🎉' : 'Continuez à apprendre !'}
               </h1>
               <p className="text-muted-foreground mb-6">
                 {passed 
                   ? 'Vous avez réussi le quiz avec brio !'
-                  : 'Vous pouvez réessayer pour améliorer votre score.'}
+                  : `Vous devez obtenir au moins ${quiz.passingScore}% pour réussir.`}
               </p>
 
+              {/* Score */}
               <div className="bg-muted/50 rounded-2xl p-6 mb-8">
-                <p className="text-5xl font-bold gradient-text mb-2">{percentage}%</p>
+                <p className="text-5xl font-bold gradient-text mb-2">{Math.round(score)}%</p>
                 <p className="text-muted-foreground">
-                  {score} / {quiz.questions.length} bonnes réponses
+                  {correctAnswers} / {quiz.questions.length} bonnes réponses
                 </p>
               </div>
 
-              <div className="flex gap-4 justify-center">
-                <Button variant="outline" onClick={handleRestart}>
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Recommencer
-                </Button>
-                <Button onClick={() => navigate('/dashboard')}>
-                  Retour au dashboard
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <p className="text-sm text-muted-foreground mb-1">Score obtenu</p>
+                  <p className="text-2xl font-bold">{Math.round(score)}%</p>
+                </div>
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <p className="text-sm text-muted-foreground mb-1">Score minimum</p>
+                  <p className="text-2xl font-bold">{quiz.passingScore}%</p>
+                </div>
+              </div>
+
+              {/* Attempt Info */}
+              {quiz.maxAttempts && (
+                <p className="text-sm text-muted-foreground mb-6">
+                  Tentative {attemptNumber} 
+                  {quiz.maxAttempts && ` sur ${quiz.maxAttempts}`}
+                </p>
+              )}
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {(!quiz.maxAttempts || attemptNumber < quiz.maxAttempts) && (
+                  <Button variant="outline" onClick={handleRestart}>
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Recommencer
+                  </Button>
+                )}
+                <Button onClick={handleBackToCourse}>
+                  Retour au cours
                 </Button>
               </div>
+
+              {/* Encouragement Message */}
+              {!passed && (
+                <div className="mt-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-sm text-muted-foreground">
+                    💡 Conseil: Relisez la leçon et réessayez le quiz pour améliorer votre score.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -118,103 +227,67 @@ export default function Quiz() {
     );
   }
 
+  // Page du quiz
   return (
     <Layout>
       <div className="section-padding">
-        <div className="container-custom max-w-2xl">
-          {/* Progress */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">
-                Question {currentQuestion + 1} / {quiz.questions.length}
-              </span>
-              <span className="text-sm font-medium">{Math.round(progress)}%</span>
+        <div className="container-custom max-w-3xl">
+          {/* Back Button */}
+          <button
+            onClick={handleBackToCourse}
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour au cours
+          </button>
+
+          {/* Quiz Header */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-2xl font-bold">{quiz.title}</h1>
+              {attemptNumber > 1 && (
+                <span className="text-sm text-muted-foreground">
+                  (Tentative {attemptNumber})
+                </span>
+              )}
             </div>
-            <Progress value={progress} className="h-2" />
+            {quiz.description && (
+              <p className="text-muted-foreground">{quiz.description}</p>
+            )}
           </div>
 
-          {/* Question Card */}
-          <div className="card-base p-8">
-            <h2 className="text-xl font-semibold mb-6">{question.question}</h2>
-
-            {/* Options */}
-            <div className="space-y-3 mb-8">
-              {question.options.map((option, index) => {
-                const isSelected = selectedAnswer === index;
-                const isCorrect = index === question.correctAnswer;
-                const showCorrect = isSubmitted && isCorrect;
-                const showIncorrect = isSubmitted && isSelected && !isCorrect;
-
-                return (
-                  <button
-                    key={index}
-                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                      showCorrect
-                        ? 'border-success bg-success/10'
-                        : showIncorrect
-                        ? 'border-destructive bg-destructive/10'
-                        : isSelected
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                    }`}
-                    onClick={() => handleSelectAnswer(index)}
-                    disabled={isSubmitted}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                        showCorrect
-                          ? 'border-success bg-success text-success-foreground'
-                          : showIncorrect
-                          ? 'border-destructive bg-destructive text-destructive-foreground'
-                          : isSelected
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-muted-foreground/30'
-                      }`}>
-                        {showCorrect ? (
-                          <CheckCircle className="w-4 h-4" />
-                        ) : showIncorrect ? (
-                          <XCircle className="w-4 h-4" />
-                        ) : (
-                          <span className="text-sm font-medium">
-                            {String.fromCharCode(65 + index)}
-                          </span>
-                        )}
-                      </div>
-                      <span className="font-medium">{option}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Explanation */}
-            {isSubmitted && question.explanation && (
-              <div className="p-4 rounded-xl bg-muted/50 border border-border mb-6">
-                <p className="text-sm font-medium mb-1">Explication :</p>
-                <p className="text-sm text-muted-foreground">{question.explanation}</p>
+          {/* Quiz Info */}
+          <div className="card-base p-4 mb-6">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Questions:</span>
+                <span className="font-medium">{quiz.questions.length}</span>
               </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3">
-              {!isSubmitted ? (
-                <Button onClick={handleSubmitAnswer} disabled={selectedAnswer === null}>
-                  Valider
-                </Button>
-              ) : (
-                <Button onClick={handleNextQuestion}>
-                  {currentQuestion < quiz.questions.length - 1 ? (
-                    <>
-                      Suivant
-                      <ArrowRight className="w-4 h-4 ml-1" />
-                    </>
-                  ) : (
-                    'Voir les résultats'
-                  )}
-                </Button>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Score minimum:</span>
+                <span className="font-medium">{quiz.passingScore}%</span>
+              </div>
+              {quiz.timeLimit && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Temps limite:</span>
+                  <span className="font-medium">{quiz.timeLimit} min</span>
+                </div>
+              )}
+              {quiz.maxAttempts && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Tentatives max:</span>
+                  <span className="font-medium">{quiz.maxAttempts}</span>
+                </div>
               )}
             </div>
           </div>
+
+          {/* Quiz Component */}
+          <QuizComponent
+            quiz={quiz}
+            onComplete={handleQuizComplete}
+            onCancel={handleBackToCourse}
+          />
         </div>
       </div>
     </Layout>
