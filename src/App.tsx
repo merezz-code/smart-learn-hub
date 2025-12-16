@@ -1,3 +1,4 @@
+// src/App.tsx
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -32,7 +33,7 @@ const App = () => (
             <Route path="/courses" element={<Courses />} />
             <Route path="/course/:id" element={<CourseDetail />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/quiz" element={<Quiz />} />
+            <Route path="/quiz/:quizId" element={<Quiz />} />
             <Route path="/game" element={<Game />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/admin" element={<Admin />} />

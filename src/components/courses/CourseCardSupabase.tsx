@@ -1,14 +1,53 @@
-// src/components/courses/CourseCard.tsx
+// src/components/courses/CourseCardSupabase.tsx
+import { useState, useEffect } from 'react';
 import { Course, CourseLevel, CourseCategory } from '@/types/course';
 import { Link } from 'react-router-dom';
-import { Clock, Users, Star, BookOpen } from 'lucide-react';
+import { Clock, Users, Star, BookOpen, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { courseService } from '@/lib/courseService';
+import { toast } from 'sonner';
 
-interface CourseCardProps {
-  course: Course;
+interface CourseCardSupabaseProps {
+  courseId: string;
 }
 
-export function CourseCard({ course }: CourseCardProps) {
+export function CourseCardSupabase({ courseId }: CourseCardSupabaseProps) {
+  const [course, setCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadCourse();
+  }, [courseId]);
+
+  const loadCourse = async () => {
+    try {
+      setLoading(true);
+      const data = await courseService.getCourseById(courseId);
+      setCourse(data);
+    } catch (error) {
+      console.error('Erreur chargement cours:', error);
+      toast.error('Impossible de charger le cours');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="card-base p-8 flex items-center justify-center min-h-[300px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="card-base p-8 text-center">
+        <p className="text-muted-foreground">Cours introuvable</p>
+      </div>
+    );
+  }
+
   const levelColors: Record<CourseLevel, string> = {
     [CourseLevel.BEGINNER]: 'bg-success/10 text-success border-success/20',
     [CourseLevel.INTERMEDIATE]: 'bg-warning/10 text-warning border-warning/20',
@@ -41,8 +80,7 @@ export function CourseCard({ course }: CourseCardProps) {
     return hours > 0 ? `${hours}h ${mins}min` : `${mins}min`;
   };
 
-  // Calculer le nombre total de leçons
-  const totalLessons = course.modules?.reduce((acc, module) => acc + module.lessons.length, 0) || 0;
+  const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
 
   return (
     <Link to={`/course/${course.id}`} className="block">
@@ -54,7 +92,6 @@ export function CourseCard({ course }: CourseCardProps) {
             alt={course.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             onError={(e) => {
-              // Fallback si l'image ne charge pas
               e.currentTarget.src = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80';
             }}
           />
