@@ -1,6 +1,7 @@
+// src/contexts/AuthContext.tsx - VERSION SUPABASE AUTH
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '@/types';
-import { mockUser } from '@/data/mockData';
+import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -18,27 +19,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored auth
-    const storedUser = localStorage.getItem('smartlearn_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Vérifier la session au démarrage
+    checkSession();
+
+    // Écouter les changements d'auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔐 Auth event:', event, session?.user?.email);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const checkSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      console.log('✅ Session:', session?.user?.email);
+    } catch (error) {
+      console.error('❌ Erreur session:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
       
-      // Mock validation
-      if (email && password.length >= 6) {
-        const loggedUser = { ...mockUser, email };
-        setUser(loggedUser);
-        localStorage.setItem('smartlearn_user', JSON.stringify(loggedUser));
-        return true;
-      }
+      setUser(data.user);
+      console.log('✅ Connexion:', data.user?.email);
+      return true;
+    } catch (error: any) {
+      console.error('❌ Erreur login:', error);
       return false;
     } finally {
       setIsLoading(false);
@@ -48,30 +72,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+          },
+        },
+      });
+
+      if (error) throw error;
       
-      if (name && email && password.length >= 6) {
-        const newUser: User = {
-          id: Date.now().toString(),
-          email,
-          name,
-          role: 'student',
-          createdAt: new Date(),
-        };
-        setUser(newUser);
-        localStorage.setItem('smartlearn_user', JSON.stringify(newUser));
-        return true;
-      }
+      setUser(data.user);
+      console.log('✅ Inscription:', data.user?.email);
+      return true;
+    } catch (error: any) {
+      console.error('❌ Erreur register:', error);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('smartlearn_user');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      console.log('✅ Déconnexion');
+    } catch (error) {
+      console.error('❌ Erreur logout:', error);
+    }
   };
 
   return (

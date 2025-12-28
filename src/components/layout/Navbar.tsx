@@ -1,21 +1,39 @@
+// src/components/layout/Navbar.tsx - COMPATIBLE AVEC NOUVEAU AUTHCONTEXT
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { BookOpen, GraduationCap, LayoutDashboard, LogOut, Menu, X, Gamepad2, MessageCircle, Settings } from 'lucide-react';
+import { 
+  BookOpen, 
+  GraduationCap, 
+  LayoutDashboard, 
+  LogOut, 
+  Menu, 
+  X, 
+  Gamepad2, 
+  MessageCircle, 
+  Settings,
+  User,
+  Shield
+} from 'lucide-react';
 import { useState } from 'react';
+
 export function Navbar() {
-  const {
-    user,
-    isAuthenticated,
-    logout
-  } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // ✅ Vérifier si admin (plusieurs conditions pour plus de flexibilité)
+  const isAdmin = user?.role === 'admin' || 
+                  user?.email?.includes('admin') ||
+                  user?.email === 'test@example.com'; // Pour les tests
+
   const handleLogout = () => {
     logout();
     navigate('/');
   };
-  return <nav className="fixed top-0 left-0 right-0 z-50 glass">
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="container-custom">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -34,7 +52,9 @@ export function Navbar() {
                 Cours
               </Button>
             </Link>
-            {isAuthenticated && <>
+            
+            {isAuthenticated && (
+              <>
                 <Link to="/dashboard">
                   <Button variant="ghost" className="gap-2">
                     <LayoutDashboard className="w-4 h-4" />
@@ -53,41 +73,77 @@ export function Navbar() {
                     Assistant IA
                   </Button>
                 </Link>
-                {user?.role === 'admin' && <Link to="/admin">
-                    <Button variant="ghost" className="gap-2">
-                      <Settings className="w-4 h-4" />
+                
+                {/* ✅ Lien Admin avec indication visuelle */}
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button 
+                      variant="ghost" 
+                      className="gap-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50"
+                    >
+                      <Shield className="w-4 h-4" />
                       Admin
                     </Button>
-                  </Link>}
-              </>}
+                  </Link>
+                )}
+              </>
+            )}
           </div>
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            {isAuthenticated ? <div className="flex items-center gap-3">
+            {isAuthenticated && user ? (
+              <div className="flex items-center gap-3">
+                {/* ✅ Badge utilisateur avec info admin */}
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium ${
+                  isAdmin 
+                    ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30' 
+                    : 'bg-primary/10 text-primary border border-primary/20'
+                }`}>
+                  {isAdmin ? (
+                    <Shield className="w-4 h-4" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
+                  <span className="max-w-[120px] truncate">
+                    {user?.name || user?.email?.split('@')[0] || 'Utilisateur'}
+                  </span>
+                  {isAdmin && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white font-semibold">
+                      ADMIN
+                    </span>
+                  )}
+                </div>
                 
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Déconnexion
                 </Button>
-              </div> : <>
+              </div>
+            ) : (
+              <>
                 <Link to="/login">
                   <Button variant="ghost">Connexion</Button>
                 </Link>
                 <Link to="/register">
                   <Button>S'inscrire</Button>
                 </Link>
-              </>}
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
-          <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          <button 
+            className="md:hidden p-2" 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
         {/* Mobile Menu */}
-        {mobileMenuOpen && <div className="md:hidden py-4 border-t border-border animate-slide-up">
+        {mobileMenuOpen && (
+          <div className="md:hidden py-4 border-t border-border animate-slide-up">
             <div className="flex flex-col gap-2">
               <Link to="/courses" onClick={() => setMobileMenuOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start gap-2">
@@ -95,7 +151,9 @@ export function Navbar() {
                   Cours
                 </Button>
               </Link>
-              {isAuthenticated && <>
+              
+              {isAuthenticated && (
+                <>
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" className="w-full justify-start gap-2">
                       <LayoutDashboard className="w-4 h-4" />
@@ -114,28 +172,73 @@ export function Navbar() {
                       Assistant IA
                     </Button>
                   </Link>
-                  {user?.role === 'admin' && <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-2">
-                        <Settings className="w-4 h-4" />
+                  
+                  {isAdmin && (
+                    <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start gap-2 text-amber-600 hover:text-amber-700"
+                      >
+                        <Shield className="w-4 h-4" />
                         Admin
                       </Button>
-                    </Link>}
-                </>}
+                    </Link>
+                  )}
+                </>
+              )}
+              
               <div className="border-t border-border pt-2 mt-2">
-                {isAuthenticated ? <Button variant="ghost" className="w-full justify-start gap-2" onClick={handleLogout}>
-                    <LogOut className="w-4 h-4" />
-                    Déconnexion
-                  </Button> : <>
+                {isAuthenticated && user ? (
+                  <>
+                    {/* Info utilisateur mobile */}
+                    <div className={`flex items-center gap-2 px-3 py-2 mb-2 rounded-lg ${
+                      isAdmin 
+                        ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400' 
+                        : 'bg-primary/10 text-primary'
+                    }`}>
+                      {isAdmin ? (
+                        <Shield className="w-4 h-4" />
+                      ) : (
+                        <User className="w-4 h-4" />
+                      )}
+                      <span className="text-sm font-medium flex-1 truncate">
+                        {user?.name || user?.email || 'Utilisateur'}
+                      </span>
+                      {isAdmin && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-amber-600 text-white">
+                          ADMIN
+                        </span>
+                      )}
+                    </div>
+                    
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start gap-2" 
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Déconnexion
+                    </Button>
+                  </>
+                ) : (
+                  <>
                     <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full">Connexion</Button>
+                      <Button variant="ghost" className="w-full">
+                        Connexion
+                      </Button>
                     </Link>
                     <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                      <Button className="w-full mt-2">S'inscrire</Button>
+                      <Button className="w-full mt-2">
+                        S'inscrire
+                      </Button>
                     </Link>
-                  </>}
+                  </>
+                )}
               </div>
             </div>
-          </div>}
+          </div>
+        )}
       </div>
-    </nav>;
+    </nav>
+  );
 }
