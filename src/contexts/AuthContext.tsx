@@ -1,7 +1,12 @@
-// src/contexts/AuthContext.tsx - VERSION SUPABASE AUTH
+// src/contexts/AuthContext.tsx - VERSION SIMPLE SANS SUPABASE
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
-import { User } from '@supabase/supabase-js';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -14,55 +19,50 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Vérifier la session au démarrage
-    checkSession();
-
-    // Écouter les changements d'auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔐 Auth event:', event, session?.user?.email);
-        setUser(session?.user ?? null);
-        setIsLoading(false);
+    // Charger l'utilisateur depuis localStorage au démarrage
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error('Erreur parsing user:', error);
+        localStorage.removeItem('user');
       }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const checkSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      console.log('✅ Session:', session?.user?.email);
-    } catch (error) {
-      console.error('❌ Erreur session:', error);
-    } finally {
-      setIsLoading(false);
     }
-  };
+    setIsLoading(false);
+  }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) throw error;
-      
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Erreur login:', data.error);
+        return false;
+      }
+
       setUser(data.user);
-      console.log('✅ Connexion:', data.user?.email);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      console.log('✅ Connexion:', data.user.email);
       return true;
-    } catch (error: any) {
-      console.error('❌ Erreur login:', error);
+    } catch (error) {
+      console.error('❌ Erreur réseau login:', error);
       return false;
     } finally {
       setIsLoading(false);
@@ -72,37 +72,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: name,
-          },
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ name, email, password }),
       });
 
-      if (error) throw error;
-      
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Erreur register:', data.error);
+        return false;
+      }
+
       setUser(data.user);
-      console.log('✅ Inscription:', data.user?.email);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      console.log('✅ Inscription:', data.user.email);
       return true;
-    } catch (error: any) {
-      console.error('❌ Erreur register:', error);
+    } catch (error) {
+      console.error('❌ Erreur réseau register:', error);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      console.log('✅ Déconnexion');
-    } catch (error) {
-      console.error('❌ Erreur logout:', error);
-    }
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
+    console.log('✅ Déconnexion');
   };
 
   return (
