@@ -176,7 +176,7 @@ export function MemoryGame() {
             </p>
           )}
 
-          <Button onClick={initializeGame} size="lg">
+          <Button onClick={initializeGame} className="text-lg px-6 py-2">
             <RotateCcw className="w-4 h-4 mr-2" />
             Rejouer
           </Button>
@@ -207,7 +207,7 @@ export function MemoryGame() {
       {/* Restart Button */}
       {!gameComplete && (
         <div className="text-center mt-6">
-          <Button variant="outline" onClick={initializeGame}>
+          <Button onClick={initializeGame} className="border border-primary text-primary hover:bg-primary/10">
             <RotateCcw className="w-4 h-4 mr-2" />
             Recommencer
           </Button>

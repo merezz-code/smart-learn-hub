@@ -162,7 +162,7 @@ export function WordScrambleGame() {
             <p className="text-sm text-muted-foreground">points</p>
           </div>
 
-          <Button onClick={initializeGame} size="lg">
+          <Button onClick={initializeGame} className="px-6 py-3 text-lg">
             <RotateCcw className="w-4 h-4 mr-2" />
             Rejouer
           </Button>
@@ -202,7 +202,7 @@ export function WordScrambleGame() {
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Valider
               </Button>
-              <Button type="button" variant="outline" onClick={handleSkip}>
+              <Button type="button" onClick={handleSkip}>
                 <XCircle className="w-4 h-4 mr-2" />
                 Passer
               </Button>
@@ -211,7 +211,7 @@ export function WordScrambleGame() {
 
           {!showHint && (
             <Button 
-              variant="ghost" 
+              
               className="w-full mt-4"
               onClick={() => setShowHint(true)}
             >
@@ -225,7 +225,7 @@ export function WordScrambleGame() {
       {/* Restart */}
       {!gameComplete && (
         <div className="text-center mt-6">
-          <Button variant="outline" onClick={initializeGame}>
+          <Button onClick={initializeGame} >
             <RotateCcw className="w-4 h-4 mr-2" />
             Recommencer
           </Button>

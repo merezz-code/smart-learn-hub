@@ -261,7 +261,7 @@ export function ScenarioGame() {
             <p className="text-muted-foreground mb-2">{getFinalRating().text}</p>
             <p className="text-2xl font-bold gradient-text mb-6">{score} points</p>
 
-            <Button onClick={resetGame} size="lg">
+            <Button onClick={resetGame} className="px-6 py-3 text-lg">
               <RotateCcw className="w-4 h-4 mr-2" />
               Rejouer
             </Button>
@@ -288,7 +288,7 @@ export function ScenarioGame() {
       {/* Restart */}
       {!currentScene.isEnding && (
         <div className="text-center mt-6">
-          <Button variant="outline" onClick={resetGame}>
+          <Button onClick={resetGame}>
             <RotateCcw className="w-4 h-4 mr-2" />
             Recommencer
           </Button>

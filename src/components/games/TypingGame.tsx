@@ -162,7 +162,7 @@ export function TypingGame() {
             Précision finale : {accuracy}%
           </p>
 
-          <Button onClick={initializeGame} size="lg">
+          <Button onClick={initializeGame} className="px-6 py-3 text-lg">
             <RotateCcw className="w-4 h-4 mr-2" />
             Rejouer
           </Button>
@@ -205,7 +205,7 @@ export function TypingGame() {
       {/* Restart */}
       {!gameComplete && (
         <div className="text-center mt-6">
-          <Button variant="outline" onClick={initializeGame}>
+          <Button onClick={initializeGame}>
             <RotateCcw className="w-4 h-4 mr-2" />
             Recommencer
           </Button>

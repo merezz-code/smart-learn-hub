@@ -6,54 +6,133 @@ import { MemoryGame } from '@/components/games/MemoryGame';
 import { WordScrambleGame } from '@/components/games/WordScrambleGame';
 import { ScenarioGame } from '@/components/games/ScenarioGame';
 import { TypingGame } from '@/components/games/TypingGame';
-import { 
-  Grid3X3, 
-  Type, 
-  GitBranch, 
+import {
+  Grid3X3,
+  Type,
+  GitBranch,
   Keyboard,
-  ArrowLeft
+  ArrowLeft,
+  Sigma,
+  MousePointerClick,
+  Brain,
+  Target,
+  Zap,
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { QuizGame } from '@/components/games/QuizGame';
+import { FastClickGame } from '@/components/games/FastClickGame';
+import { MathRaceGame } from '@/components/games/MathRaceGame';
+import { AlgoTowerGame } from '@/components/games/AlgoTowerGame';
+import { BinaryPuzzleGame } from '@/components/games/BinaryPuzzleGame';
+import { LogicMazeGame } from '@/components/games/LogicMazeGame';
 
 const games = [
+  // ----- FACILE -----
   {
     id: 'memory',
+    level: 'easy',
     name: 'Memory',
-    description: 'Trouvez les paires d\'icônes tech',
+    description: 'Trouvez les paires tech',
     icon: Grid3X3,
     color: 'text-primary',
     bgColor: 'bg-primary/10'
   },
   {
     id: 'scramble',
+    level: 'easy',
     name: 'Mots Mélangés',
-    description: 'Devinez les termes techniques',
+    description: 'Remettez les lettres en ordre',
     icon: Type,
     color: 'text-accent',
     bgColor: 'bg-accent/10'
   },
+
+  // ----- MOYEN -----
   {
     id: 'scenario',
+    level: 'medium',
     name: 'Cyber Scénario',
-    description: 'Gérez une crise de sécurité',
+    description: 'Choisissez la bonne stratégie',
     icon: GitBranch,
     color: 'text-success',
     bgColor: 'bg-success/10'
   },
   {
     id: 'typing',
+    level: 'medium',
     name: 'Code Typing',
     description: 'Tapez du code rapidement',
     icon: Keyboard,
     color: 'text-warning',
     bgColor: 'bg-warning/10'
+  },
+
+  // ----- DIFFICILE -----
+  {
+    id: 'logicMaze',
+    level: 'hard',
+    name: 'Labyrinthe Logique',
+    description: 'Résolvez un labyrinthe programmé',
+    icon: Target,
+    color: 'text-red-500',
+    bgColor: 'bg-red-500/10'
+  },
+  {
+    id: 'binaryPuzzle',
+    level: 'hard',
+    name: 'Binary Puzzle',
+    description: 'Résolvez une grille binaire 0/1',
+    icon: Zap,
+    color: 'text-purple-500',
+    bgColor: 'bg-purple-500/10'
+  },
+  {
+    id: 'algoTower',
+    level: 'hard',
+    name: 'Algo Tower',
+    description: 'Mini algorithmes à résoudre en temps limité',
+    icon: Star,
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-500/10'
+  },
+  {
+    id: 'quiz',
+    level: 'easy',
+    name: 'Quiz Tech',
+    description: 'Répondez à des questions rapides',
+    icon: Brain,
+    color: 'text-purple-500',
+    bgColor: 'bg-purple-500/10'
+  },
+  {
+    id: 'fastclick',
+    level: 'easy',
+    name: 'Fast Click',
+    description: 'Cliquez le plus vite possible',
+    icon: MousePointerClick,
+    color: 'text-rose-500',
+    bgColor: 'bg-rose-500/10'
+  },
+  {
+    id: 'mathrace',
+    name: 'Math Race',
+    level: 'easy',
+    description: 'Résolvez des calculs en vitesse',
+    icon: Sigma,
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-500/10'
   }
 ];
 
 export default function Game() {
   const { isAuthenticated } = useAuth();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [filterLevel, setFilterLevel] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
 
+  const filteredGames = games.filter(game =>
+    filterLevel === 'all' ? true : game.level === filterLevel
+  );
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -68,6 +147,18 @@ export default function Game() {
         return <ScenarioGame />;
       case 'typing':
         return <TypingGame />;
+      case 'quiz':
+        return <QuizGame />;
+      case 'fastclick':
+        return <FastClickGame />;
+      case 'mathrace':
+        return <MathRaceGame />;
+      case 'algoTower':
+        return <AlgoTowerGame />;
+      case 'binaryPuzzle':
+        return <BinaryPuzzleGame />;
+      case 'logicMaze':
+        return <LogicMazeGame />;
       default:
         return null;
     }
@@ -75,14 +166,15 @@ export default function Game() {
 
   return (
     <Layout>
+
+
       <div className="section-padding">
         <div className="container-custom">
           {selectedGame ? (
             <>
               {/* Back button and title */}
               <div className="mb-8">
-                <Button 
-                  variant="ghost" 
+                <Button
                   onClick={() => setSelectedGame(null)}
                   className="mb-4"
                 >
@@ -93,7 +185,7 @@ export default function Game() {
                   {games.find(g => g.id === selectedGame)?.name}
                 </h1>
               </div>
-              
+
               {renderGame()}
 
               {/* Game Info */}
@@ -140,10 +232,31 @@ export default function Game() {
                   Apprenez en vous amusant avec nos serious games
                 </p>
               </div>
+              <div className="flex gap-3 justify-center mb-8">
+                <Button onClick={() => setFilterLevel('all')}
+                  className={filterLevel === 'all' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}>
+                  Tous
+                </Button>
+
+                <Button onClick={() => setFilterLevel('easy')}
+                  className={filterLevel === 'easy' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}>
+                  Facile
+                </Button>
+
+                <Button onClick={() => setFilterLevel('medium')}
+                  className={filterLevel === 'medium' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}>
+                  Moyen
+                </Button>
+
+                <Button onClick={() => setFilterLevel('hard')}
+                  className={filterLevel === 'hard' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}>
+                  Difficile
+                </Button>
+              </div>
 
               {/* Games Grid */}
               <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-                {games.map((game) => (
+                {filteredGames.map((game) => (
                   <button
                     key={game.id}
                     onClick={() => setSelectedGame(game.id)}

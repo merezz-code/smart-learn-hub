@@ -113,7 +113,9 @@ export default function Dashboard() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">
+
               Bonjour, <span className="gradient-text">{user?.name || 'Apprenant'}</span> 👋
+
             </h1>
             <p className="text-muted-foreground">
               Continuez votre apprentissage où vous l'avez laissé
