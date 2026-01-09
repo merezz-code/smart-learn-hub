@@ -1,15 +1,15 @@
 // backend/routes/admin.routes.js
 import express from 'express';
 import Course from '../models/rag/Course.js';
+import CourseModule from '../models/CourseModule.js';
 import Lesson from '../models/Lesson.js';
 import Quiz from '../models/Quiz.js';
 import Question from '../models/Question.js';
 import db from '../src/db.js';
-import CourseModule from '../models/CourseModule.js';
 
 const router = express.Router();
 
-// Middleware simple pour vérifier si admin
+// Middleware admin
 function isAdmin(req, res, next) {
   const userRole = req.headers['x-user-role'];
   if (userRole !== 'admin') {
@@ -43,41 +43,7 @@ router.get('/stats', isAdmin, async (req, res) => {
   }
 });
 
-// Statistiques par cours
-router.get('/courses/:id/stats', isAdmin, async (req, res) => {
-  try {
-    const courseStats = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT 
-          c.id,
-          c.title,
-          c.students_count,
-          COUNT(DISTINCT up.user_id) as enrolled_students,
-          COUNT(DISTINCT l.id) as total_lessons,
-          COUNT(DISTINCT q.id) as total_quizzes
-        FROM courses c
-        LEFT JOIN lessons l ON l.course_id = c.id
-        LEFT JOIN quizzes q ON q.course_id = c.id
-        LEFT JOIN user_progress up ON up.course_id = c.id
-        WHERE c.id = ?
-        GROUP BY c.id
-        `,
-        [req.params.id],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-
-    res.json(courseStats);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // ========== COURS ==========
-// Tous les cours (y compris non publiés)
 router.get('/courses', isAdmin, async (req, res) => {
   try {
     const courses = await new Promise((resolve, reject) => {
@@ -97,7 +63,6 @@ router.get('/courses', isAdmin, async (req, res) => {
   }
 });
 
-// Créer un cours
 router.post('/courses', isAdmin, async (req, res) => {
   try {
     const course = await Course.create(req.body);
@@ -107,7 +72,6 @@ router.post('/courses', isAdmin, async (req, res) => {
   }
 });
 
-// Modifier un cours
 router.put('/courses/:id', isAdmin, async (req, res) => {
   try {
     const course = await Course.update(req.params.id, req.body);
@@ -117,7 +81,6 @@ router.put('/courses/:id', isAdmin, async (req, res) => {
   }
 });
 
-// Supprimer un cours
 router.delete('/courses/:id', isAdmin, async (req, res) => {
   try {
     await Course.delete(req.params.id);
@@ -127,7 +90,6 @@ router.delete('/courses/:id', isAdmin, async (req, res) => {
   }
 });
 
-// Publier/Dépublier un cours
 router.patch('/courses/:id/publish', isAdmin, async (req, res) => {
   try {
     const { published } = req.body;
@@ -148,21 +110,80 @@ router.patch('/courses/:id/publish', isAdmin, async (req, res) => {
   }
 });
 
+// ========== MODULES ==========
+router.get('/courses/:courseId/modules', isAdmin, async (req, res) => {
+  try {
+    console.log('🔍 Chargement modules pour cours:', req.params.courseId);
+    
+    const modules = await CourseModule.getWithLessons(req.params.courseId);
+    
+    console.log('✅ Modules trouvés:', modules.length);
+    modules.forEach(m => {
+      console.log(`  - ${m.title}: ${m.lessons?.length || 0} leçons`);
+    });
+    
+    res.json(modules);
+  } catch (error) {
+    console.error('❌ Erreur chargement modules:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/modules', isAdmin, async (req, res) => {
+  try {
+    console.log('➕ Création module:', req.body);
+    const module = await CourseModule.create(req.body);
+    console.log('✅ Module créé:', module);
+    res.status(201).json(module);
+  } catch (error) {
+    console.error('❌ Erreur création module:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/modules/:id', isAdmin, async (req, res) => {
+  try {
+    const module = await CourseModule.update(req.params.id, req.body);
+    res.json(module);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/modules/:id', isAdmin, async (req, res) => {
+  try {
+    await CourseModule.delete(req.params.id);
+    res.json({ message: 'Module supprimé' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ========== LEÇONS ==========
 router.post('/lessons', isAdmin, async (req, res) => {
   try {
+    console.log('➕ Création leçon:', req.body);
+    
     const lesson = await Lesson.create(req.body);
+    
+    console.log('✅ Leçon créée:', lesson);
     res.status(201).json(lesson);
   } catch (error) {
+    console.error('❌ Erreur création leçon:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 router.put('/lessons/:id', isAdmin, async (req, res) => {
   try {
+    console.log('✏️ Modification leçon:', req.params.id, req.body);
+    
     const lesson = await Lesson.update(req.params.id, req.body);
+    
+    console.log('✅ Leçon modifiée:', lesson);
     res.json(lesson);
   } catch (error) {
+    console.error('❌ Erreur modification leçon:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -227,44 +248,6 @@ router.delete('/questions/:id', isAdmin, async (req, res) => {
   try {
     await Question.delete(req.params.id);
     res.json({ message: 'Question supprimée' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-// ========== MODULES ==========
-router.get('/courses/:courseId/modules', isAdmin, async (req, res) => {
-  try {
-    const modules = await CourseModule.getWithLessons(req.params.courseId);
-    res.json(modules);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/modules', isAdmin, async (req, res) => {
-  try {
-    const module = await CourseModule.create(req.body);
-    res.status(201).json(module);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.put('/modules/:id', isAdmin, async (req, res) => {
-  try {
-    const module = await CourseModule.update(req.params.id, req.body);
-    res.json(module);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.delete('/modules/:id', isAdmin, async (req, res) => {
-  try {
-    await CourseModule.delete(req.params.id);
-    res.json({ message: 'Module supprimé' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

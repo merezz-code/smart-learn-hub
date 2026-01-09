@@ -135,5 +135,5 @@ class Quiz {
     });
   }
 }
-
+//mais je trouve pas le quiz , puisque je suis pas l'ajoutez comme Admin?
 export default Quiz;

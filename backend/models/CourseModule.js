@@ -9,10 +9,15 @@ class CourseModule {
       db.run(
         `INSERT INTO course_modules (course_id, title, description, order_index) 
          VALUES (?, ?, ?, ?)`,
-        [course_id, title, description, order_index || 0],
+        [course_id, title, description || null, order_index || 0],
         function(err) {
-          if (err) reject(err);
-          else resolve({ id: this.lastID, ...moduleData });
+          if (err) {
+            console.error('❌ Erreur SQL création module:', err);
+            reject(err);
+          } else {
+            console.log('✅ Module créé avec ID:', this.lastID);
+            resolve({ id: this.lastID, ...moduleData });
+          }
         }
       );
     });
@@ -77,7 +82,10 @@ class CourseModule {
   }
 
   static async getWithLessons(courseId) {
+    console.log('🔍 getWithLessons pour cours:', courseId);
+    
     const modules = await this.findByCourseId(courseId);
+    console.log('📦 Modules trouvés:', modules.length);
     
     const modulesWithLessons = await Promise.all(
       modules.map(async (module) => {
@@ -89,7 +97,10 @@ class CourseModule {
             [module.id],
             (err, rows) => {
               if (err) reject(err);
-              else resolve(rows || []);
+              else {
+                console.log(`  📝 Module "${module.title}" (ID: ${module.id}): ${rows?.length || 0} leçons`);
+                resolve(rows || []);
+              }
             }
           );
         });

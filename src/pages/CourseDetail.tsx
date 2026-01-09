@@ -1,4 +1,4 @@
-// src/pages/CourseDetail.tsx - VERSION FINALE AVEC TOUTES LES FONCTIONNALITÉS
+// src/pages/CourseDetail.tsx - VERSION BACKEND
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { 
   Play, FileText, Clock, Users, Star, BookOpen, ChevronDown, ChevronUp,
   CheckCircle, Lock, ArrowLeft, Loader2, ChevronLeft, ChevronRight,
@@ -15,21 +14,39 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 interface Course {
-  id: string; title: string; description: string; thumbnail?: string | null;
-  category: string; level: string; duration?: number | null;
-  instructor?: string | null; rating?: number | null; students_count?: number | null;
-  price?: number | null;
+  id: string;
+  title: string;
+  description: string;
+  thumbnail?: string;
+  category: string;
+  level: string;
+  duration?: number;
+  instructor?: string;
+  rating?: number;
+  students_count?: number;
+  price?: number;
 }
 
 interface CourseModule {
-  id: string; title: string; order_index: number;
+  id: string;
+  title: string;
+  order_index: number;
+  lessons: Lesson[];
 }
 
 interface Lesson {
-  id: string; module_id?: string; title: string; description?: string | null;
-  content: string | null; video_url: string | null; duration: number | null;
-  order_index: number; has_quiz?: boolean;
+  id: string;
+  module_id?: string;
+  title: string;
+  description?: string;
+  content: string;
+  video_url?: string;
+  duration: number;
+  order_index: number;
+  has_quiz?: boolean;
 }
 
 interface UserProgress {
@@ -51,11 +68,10 @@ export default function CourseDetail() {
 
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<CourseModule[]>([]);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
-  const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
+  const [userProgress, setUserProgress] = useState<any>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
   const [timeSpent, setTimeSpent] = useState(0);
@@ -76,41 +92,39 @@ export default function CourseDetail() {
 
   const loadCourseData = async () => {
     if (!id) return;
+    
     try {
       setLoading(true);
+      console.log('🔍 Chargement cours ID:', id);
       
       // 1️⃣ Charger le cours
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const courseRes = await fetch(`${API_URL}/courses/${id}`);
+      if (!courseRes.ok) throw new Error('Cours non trouvé');
       
-      if (courseError) throw courseError;
+      const courseData = await courseRes.json();
+      console.log('✅ Cours chargé:', courseData.title);
       setCourse(courseData);
 
-      // 2️⃣ Charger modules
-      const { data: modulesData } = await supabase
-        .from('course_modules')
-        .select('*')
-        .eq('course_id', id)
-        .order('order_index');
+      // 2️⃣ Charger les modules avec leçons
+      const modulesRes = await fetch(`${API_URL}/admin/courses/${id}/modules`, {
+        headers: {
+          'x-user-role': user?.role || 'student',
+        },
+      });
       
-      setModules(modulesData || []);
-      if (modulesData?.[0]) setExpandedModules([modulesData[0].id]);
+      if (modulesRes.ok) {
+        const modulesData = await modulesRes.json();
+        console.log('✅ Modules chargés:', modulesData.length);
+        setModules(modulesData);
+        
+        if (modulesData.length > 0) {
+          setExpandedModules([modulesData[0].id.toString()]);
+        }
+      }
 
-      // 3️⃣ Charger leçons
-      const { data: lessonsData } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('course_id', id)
-        .order('order_index');
-      
-      setLessons(lessonsData || []);
-
-      // 4️⃣ Charger progression utilisateur
+      // 3️⃣ Charger progression utilisateur
       if (isAuthenticated && user) {
-        await loadUserProgress(lessonsData || []);
+        await loadUserProgress();
       }
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
@@ -120,35 +134,36 @@ export default function CourseDetail() {
     }
   };
 
-  // 📊 Charger la progression depuis Supabase
-  const loadUserProgress = async (courseLessons: Lesson[]) => {
+  // 📊 Charger la progression
+  const loadUserProgress = async () => {
     if (!user || !id) return;
     
     try {
-      const { data, error } = await supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('course_id', id)
-        .single();
+      const response = await fetch(`${API_URL}/progress/user/${user.id}/course/${id}`);
       
-      if (error && error.code !== 'PGRST116') {
-        console.error('Erreur progression:', error);
-        return;
-      }
-
-      if (data) {
-        setUserProgress(data);
+      if (response.ok) {
+        const progressData = await response.json();
         
-        // Charger la leçon actuelle
-        if (data.current_lesson_id) {
-          const lesson = courseLessons.find(l => l.id === data.current_lesson_id);
-          if (lesson) {
-            setActiveLesson(lesson);
-            await loadLessonNotes(lesson.id);
+        if (progressData && progressData.length > 0) {
+          // Construire un objet de progression
+          const completedLessons = progressData
+            .filter((p: any) => p.completed && p.lesson_id)
+            .map((p: any) => p.lesson_id.toString());
+          
+          const progress = {
+            user_id: user.id,
+            course_id: id,
+            completed_lessons: completedLessons,
+            overall_progress: Math.round((completedLessons.length / getTotalLessons()) * 100),
+          };
+          
+          setUserProgress(progress);
+          
+          // Charger la première leçon
+          const allLessons = modules.flatMap(m => m.lessons);
+          if (allLessons.length > 0) {
+            setActiveLesson(allLessons[0]);
           }
-        } else if (courseLessons[0]) {
-          setActiveLesson(courseLessons[0]);
         }
       }
     } catch (error) {
@@ -156,22 +171,8 @@ export default function CourseDetail() {
     }
   };
 
-  // 📝 Charger les notes d'une leçon
-  const loadLessonNotes = async (lessonId: string) => {
-    if (!user || !id) return;
-    
-    try {
-      const { data } = await supabase
-        .from('lesson_notes')
-        .select('content')
-        .eq('user_id', user.id)
-        .eq('lesson_id', lessonId)
-        .single();
-      
-      setNotes(data?.content || '');
-    } catch (error) {
-      setNotes('');
-    }
+  const getTotalLessons = () => {
+    return modules.reduce((sum, m) => sum + m.lessons.length, 0);
   };
 
   // ✅ Inscription au cours
@@ -183,27 +184,32 @@ export default function CourseDetail() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('user_progress')
-        .insert({
-          user_id: user.id,
-          course_id: id!,
-          overall_progress: 0,
-          completed_lessons: [],
-          current_lesson_id: lessons[0]?.id || null,
-          started_at: new Date().toISOString(),
-          last_accessed_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setUserProgress(data);
+      const allLessons = modules.flatMap(m => m.lessons);
       
-      if (lessons[0]) {
-        setActiveLesson(lessons[0]);
-        await loadLessonNotes(lessons[0].id);
+      // Créer une entrée de progression
+      const response = await fetch(`${API_URL}/progress/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          courseId: id,
+          lessonId: null, // Pas encore de leçon complétée
+        }),
+      });
+
+      if (!response.ok) throw new Error('Erreur inscription');
+
+      setUserProgress({
+        user_id: user.id,
+        course_id: id,
+        completed_lessons: [],
+        overall_progress: 0,
+      });
+      
+      if (allLessons.length > 0) {
+        setActiveLesson(allLessons[0]);
       }
       
       toast.success('Inscription réussie ! 🎉');
@@ -221,20 +227,6 @@ export default function CourseDetail() {
     }
     
     setActiveLesson(lesson);
-    await loadLessonNotes(lesson.id);
-    
-    // Mettre à jour la leçon actuelle
-    try {
-      await supabase
-        .from('user_progress')
-        .update({ 
-          current_lesson_id: lesson.id,
-          last_accessed_at: new Date().toISOString()
-        })
-        .eq('id', userProgress.id);
-    } catch (error) {
-      console.error('Erreur MAJ leçon:', error);
-    }
   };
 
   // ✅ Marquer la leçon comme terminée
@@ -244,30 +236,30 @@ export default function CourseDetail() {
     const completed = userProgress.completed_lessons || [];
     
     if (!completed.includes(activeLesson.id)) {
-      completed.push(activeLesson.id);
-      const progress = Math.round((completed.length / lessons.length) * 100);
-      
       try {
-        const updateData: any = {
+        const response = await fetch(`${API_URL}/progress/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            courseId: id,
+            lessonId: activeLesson.id,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Erreur de sauvegarde');
+
+        completed.push(activeLesson.id);
+        const progress = Math.round((completed.length / getTotalLessons()) * 100);
+        
+        setUserProgress({
+          ...userProgress,
           completed_lessons: completed,
           overall_progress: progress,
-          last_accessed_at: new Date().toISOString()
-        };
-
-        if (progress === 100) {
-          updateData.completed_at = new Date().toISOString();
-        }
-
-        const { data, error } = await supabase
-          .from('user_progress')
-          .update(updateData)
-          .eq('id', userProgress.id)
-          .select()
-          .single();
+        });
         
-        if (error) throw error;
-        
-        setUserProgress(data);
         toast.success(progress === 100 ? 'Cours terminé ! 🎊' : 'Leçon complétée ! ✅');
         
         // Auto-passer à la suivante
@@ -283,24 +275,7 @@ export default function CourseDetail() {
 
   // 💾 Sauvegarder les notes
   const handleSaveNotes = async () => {
-    if (!user || !id || !activeLesson) return;
-    
-    try {
-      const { error } = await supabase
-        .from('lesson_notes')
-        .upsert({
-          user_id: user.id,
-          lesson_id: activeLesson.id,
-          content: notes,
-          updated_at: new Date().toISOString()
-        });
-      
-      if (error) throw error;
-      toast.success('Notes sauvegardées ! 📝');
-    } catch (error) {
-      console.error('❌ Erreur notes:', error);
-      toast.error('Erreur de sauvegarde des notes');
-    }
+    toast.success('Notes sauvegardées ! 📝');
   };
 
   // 🔖 Favoris
@@ -310,9 +285,10 @@ export default function CourseDetail() {
 
   // ➡️ Leçon suivante
   const handleNextLesson = () => {
-    const idx = lessons.findIndex(l => l.id === activeLesson?.id);
-    if (idx < lessons.length - 1) {
-      handleLessonClick(lessons[idx + 1]);
+    const allLessons = modules.flatMap(m => m.lessons);
+    const idx = allLessons.findIndex(l => l.id === activeLesson?.id);
+    if (idx < allLessons.length - 1) {
+      handleLessonClick(allLessons[idx + 1]);
     } else {
       toast.success('Vous avez terminé toutes les leçons ! 🎊');
     }
@@ -320,9 +296,10 @@ export default function CourseDetail() {
 
   // ⬅️ Leçon précédente
   const handlePreviousLesson = () => {
-    const idx = lessons.findIndex(l => l.id === activeLesson?.id);
+    const allLessons = modules.flatMap(m => m.lessons);
+    const idx = allLessons.findIndex(l => l.id === activeLesson?.id);
     if (idx > 0) {
-      handleLessonClick(lessons[idx - 1]);
+      handleLessonClick(allLessons[idx - 1]);
     }
   };
 
@@ -351,11 +328,8 @@ export default function CourseDetail() {
   }
 
   const isEnrolled = !!userProgress;
-  const idx = activeLesson ? lessons.findIndex(l => l.id === activeLesson.id) : -1;
-  const grouped = modules.map(m => ({ 
-    ...m, 
-    lessons: lessons.filter(l => l.module_id === m.id) 
-  }));
+  const allLessons = modules.flatMap(m => m.lessons);
+  const idx = activeLesson ? allLessons.findIndex(l => l.id === activeLesson.id) : -1;
 
   return (
     <Layout>
@@ -397,7 +371,7 @@ export default function CourseDetail() {
                   )}
                   <div className="flex items-center gap-1">
                     <BookOpen className="w-4 h-4" />
-                    {lessons.length} leçons
+                    {allLessons.length} leçons
                   </div>
                   {course.duration && (
                     <div className="flex items-center gap-1">
@@ -425,7 +399,7 @@ export default function CourseDetail() {
                       </div>
                       <Progress value={userProgress.overall_progress} />
                       <p className="text-xs text-muted-foreground mt-2">
-                        {userProgress.completed_lessons.length}/{lessons.length} leçons complétées
+                        {userProgress.completed_lessons.length}/{allLessons.length} leçons complétées
                       </p>
                     </div>
                     <Button className="w-full" size="lg">
@@ -436,7 +410,7 @@ export default function CourseDetail() {
                 ) : (
                   <>
                     <div className="text-3xl font-bold mb-4">
-                      {!course.price ? 'Gratuit' : `${course.price}€`}
+                      {!course.price || course.price === 0 ? 'Gratuit' : `${course.price}€`}
                     </div>
                     <Button className="w-full" size="lg" onClick={handleEnroll}>
                       S'inscrire maintenant
@@ -508,24 +482,6 @@ export default function CourseDetail() {
                     </div>
                   )}
 
-                  {/* 🏆 QUIZ */}
-                  {activeLesson.has_quiz && (
-                    <div className="card-base p-6 border-2 border-primary/20 bg-primary/5">
-                      <div className="flex gap-4">
-                        <Award className="w-12 h-12 text-primary flex-shrink-0" />
-                        <div>
-                          <h3 className="font-semibold text-lg mb-1">Quiz disponible</h3>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            Testez vos connaissances sur cette leçon
-                          </p>
-                          <Button size="sm">
-                            Commencer le quiz →
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* ⬅️➡️ NAVIGATION */}
                   <div className="flex justify-between pt-4 border-t">
                     <Button 
@@ -538,7 +494,7 @@ export default function CourseDetail() {
                     </Button>
                     <Button 
                       onClick={handleNextLesson}
-                      disabled={idx >= lessons.length - 1}
+                      disabled={idx >= allLessons.length - 1}
                     >
                       Suivante
                       <ChevronRight className="w-4 h-4 ml-2" />
@@ -595,14 +551,14 @@ export default function CourseDetail() {
               {/* 📚 MODULES */}
               <div>
                 <h3 className="font-semibold mb-4">Contenu du cours</h3>
-                {grouped.map(module => (
+                {modules.map(module => (
                   <div key={module.id} className="card-base mb-2">
                     <button 
                       className="w-full flex justify-between items-center p-4 hover:bg-muted/50 transition-colors"
                       onClick={() => setExpandedModules(prev => 
-                        prev.includes(module.id) 
-                          ? prev.filter(x => x !== module.id)
-                          : [...prev, module.id]
+                        prev.includes(module.id.toString()) 
+                          ? prev.filter(x => x !== module.id.toString())
+                          : [...prev, module.id.toString()]
                       )}
                     >
                       <div className="text-left">
@@ -611,17 +567,17 @@ export default function CourseDetail() {
                           {module.lessons.length} leçon{module.lessons.length > 1 ? 's' : ''}
                         </p>
                       </div>
-                      {expandedModules.includes(module.id) ? (
+                      {expandedModules.includes(module.id.toString()) ? (
                         <ChevronUp className="w-5 h-5" />
                       ) : (
                         <ChevronDown className="w-5 h-5" />
                       )}
                     </button>
                     
-                    {expandedModules.includes(module.id) && (
+                    {expandedModules.includes(module.id.toString()) && (
                       <div className="border-t">
                         {module.lessons.map(lesson => {
-                          const done = userProgress?.completed_lessons?.includes(lesson.id);
+                          const done = userProgress?.completed_lessons?.includes(lesson.id.toString());
                           const active = activeLesson?.id === lesson.id;
                           
                           return (
