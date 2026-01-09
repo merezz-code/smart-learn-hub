@@ -16,6 +16,7 @@ import Game from "./pages/Game";
 import Chat from "./pages/Chat";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import AdminCourseEditor from '@/pages/AdminCourseEditor';
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,8 @@ const App = () => (
             <Route path="/game" element={<Game />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/course/new" element={<AdminCourseEditor />} />
+            <Route path="/admin/course/:id/edit" element={<AdminCourseEditor />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

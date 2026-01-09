@@ -1,6 +1,12 @@
+// src/contexts/AuthContext.tsx - VERSION SIMPLE SANS SUPABASE
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '@/types';
-import { mockUser } from '@/data/mockData';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -13,15 +19,22 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored auth
-    const storedUser = localStorage.getItem('smartlearn_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    // Charger l'utilisateur depuis localStorage au démarrage
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error('Erreur parsing user:', error);
+        localStorage.removeItem('user');
+      }
     }
     setIsLoading(false);
   }, []);
@@ -29,16 +42,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock validation
-      if (email && password.length >= 6) {
-        const loggedUser = { ...mockUser, email };
-        setUser(loggedUser);
-        localStorage.setItem('smartlearn_user', JSON.stringify(loggedUser));
-        return true;
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Erreur login:', data.error);
+        return false;
       }
+
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      console.log('✅ Connexion:', data.user.email);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur réseau login:', error);
       return false;
     } finally {
       setIsLoading(false);
@@ -48,21 +72,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (name && email && password.length >= 6) {
-        const newUser: User = {
-          id: Date.now().toString(),
-          email,
-          name,
-          role: 'student',
-          createdAt: new Date(),
-        };
-        setUser(newUser);
-        localStorage.setItem('smartlearn_user', JSON.stringify(newUser));
-        return true;
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Erreur register:', data.error);
+        return false;
       }
+
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      console.log('✅ Inscription:', data.user.email);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur réseau register:', error);
       return false;
     } finally {
       setIsLoading(false);
@@ -71,7 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('smartlearn_user');
+    localStorage.removeItem('user');
+    console.log('✅ Déconnexion');
   };
 
   return (
