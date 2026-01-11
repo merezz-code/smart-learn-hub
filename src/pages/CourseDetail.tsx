@@ -1,4 +1,4 @@
-// src/pages/CourseDetail.tsx - VERSION BACKEND
+// src/pages/CourseDetail.tsx - VERSION FINALE CORRIGÉE
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -61,6 +61,35 @@ interface UserProgress {
   completed_at: string | null;
 }
 
+interface Quiz {
+  id: string;
+  course_id: string;
+  title: string;
+  description: string;
+  passing_score: number;
+  time_limit: number;
+  max_attempts: number;
+  questions_count: number;
+}
+
+
+// 🔐 Fonction helper pour obtenir les headers avec token - CORRIGÉE
+const getAuthHeaders = () => {
+  // ✅ CORRECTION : Utiliser 'token' au lieu de 'auth_token'
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.warn('⚠️ Aucun token trouvé dans localStorage');
+  } else {
+    console.log('✅ Token trouvé:', token.substring(0, 20) + '...');
+  }
+  
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
+};
+
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, isAuthenticated } = useAuth();
@@ -76,6 +105,20 @@ export default function CourseDetail() {
   const [notes, setNotes] = useState('');
   const [timeSpent, setTimeSpent] = useState(0);
   const [startTime] = useState(Date.now());
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+
+
+  // 🔍 DEBUG : Vérifier le token au chargement
+  useEffect(() => {
+    const token = localStorage.getItem('token'); // ✅ CORRECTION
+    console.log('🔍 État Auth:', {
+      hasToken: !!token,
+      isAuthenticated,
+      userId: user?.id,
+      userEmail: user?.email
+    });
+  }, [user, isAuthenticated]);
 
   // ⏱️ Timer temps passé
   useEffect(() => {
@@ -87,7 +130,10 @@ export default function CourseDetail() {
 
   // 📚 Charger les données du cours
   useEffect(() => {
-    if (id) loadCourseData();
+    if (id) {
+    loadCourseData();
+    loadQuizzes();
+  }
   }, [id, user]);
 
   const loadCourseData = async () => {
@@ -97,7 +143,7 @@ export default function CourseDetail() {
       setLoading(true);
       console.log('🔍 Chargement cours ID:', id);
       
-      // 1️⃣ Charger le cours
+      // 1️⃣ Charger le cours (public, pas besoin de token)
       const courseRes = await fetch(`${API_URL}/courses/${id}`);
       if (!courseRes.ok) throw new Error('Cours non trouvé');
       
@@ -106,10 +152,8 @@ export default function CourseDetail() {
       setCourse(courseData);
 
       // 2️⃣ Charger les modules avec leçons
-      const modulesRes = await fetch(`${API_URL}/admin/courses/${id}/modules`, {
-        headers: {
-          'x-user-role': user?.role || 'student',
-        },
+      const modulesRes = await fetch(`${API_URL}/courses/${id}/modules`, {
+        headers: getAuthHeaders(),
       });
       
       if (modulesRes.ok) {
@@ -120,6 +164,8 @@ export default function CourseDetail() {
         if (modulesData.length > 0) {
           setExpandedModules([modulesData[0].id.toString()]);
         }
+      } else {
+        console.warn('⚠️ Erreur chargement modules:', modulesRes.status);
       }
 
       // 3️⃣ Charger progression utilisateur
@@ -134,18 +180,55 @@ export default function CourseDetail() {
     }
   };
 
+  const loadQuizzes = async () => {
+  if (!id) return;
+  
+  try {
+    setLoadingQuizzes(true);
+    console.log('📚 Chargement des quiz du cours:', id);
+    
+    const response = await fetch(`${API_URL}/quizzes/course/${id}`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Erreur chargement quiz');
+    }
+
+    const quizzesData = await response.json();
+    console.log('✅ Quiz chargés:', quizzesData.length);
+    setQuizzes(quizzesData);
+  } catch (error) {
+    console.error('❌ Erreur chargement quiz:', error);
+    // Ne pas afficher d'erreur si pas de quiz, c'est normal
+  } finally {
+    setLoadingQuizzes(false);
+  }
+};
+
+const handleStartQuiz = (quizId: string) => {
+  if (!isAuthenticated) {
+    toast.error('Veuillez vous connecter pour passer le quiz');
+    navigate('/login');
+    return;
+  }
+  navigate(`/quiz/${quizId}`);
+};
+
+
   // 📊 Charger la progression
   const loadUserProgress = async () => {
     if (!user || !id) return;
     
     try {
-      const response = await fetch(`${API_URL}/progress/user/${user.id}/course/${id}`);
+      const response = await fetch(`${API_URL}/progress/user/${user.id}/course/${id}`, {
+        headers: getAuthHeaders(),
+      });
       
       if (response.ok) {
         const progressData = await response.json();
         
         if (progressData && progressData.length > 0) {
-          // Construire un objet de progression
           const completedLessons = progressData
             .filter((p: any) => p.completed && p.lesson_id)
             .map((p: any) => p.lesson_id.toString());
@@ -165,6 +248,8 @@ export default function CourseDetail() {
             setActiveLesson(allLessons[0]);
           }
         }
+      } else {
+        console.warn('⚠️ Pas de progression trouvée');
       }
     } catch (error) {
       console.error('❌ Erreur loadUserProgress:', error);
@@ -175,13 +260,24 @@ export default function CourseDetail() {
     return modules.reduce((sum, m) => sum + m.lessons.length, 0);
   };
 
-  // ✅ Inscription au cours
+  // ✅ Inscription au cours - CORRIGÉE
   const handleEnroll = async () => {
     if (!isAuthenticated || !user) {
       toast.error('Connectez-vous pour vous inscrire');
       navigate('/login');
       return;
     }
+
+    // ✅ CORRECTION : Utiliser 'token' au lieu de 'auth_token'
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('❌ Token manquant');
+      toast.error('Session expirée, veuillez vous reconnecter');
+      navigate('/login');
+      return;
+    }
+
+    console.log('🔑 Token présent pour inscription');
 
     try {
       const allLessons = modules.flatMap(m => m.lessons);
@@ -191,15 +287,22 @@ export default function CourseDetail() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           userId: user.id,
           courseId: id,
-          lessonId: null, // Pas encore de leçon complétée
+          lessonId: null,
         }),
       });
 
-      if (!response.ok) throw new Error('Erreur inscription');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erreur inscription');
+      }
+
+      const result = await response.json();
+      console.log('✅ Inscription réussie:', result);
 
       setUserProgress({
         user_id: user.id,
@@ -229,9 +332,17 @@ export default function CourseDetail() {
     setActiveLesson(lesson);
   };
 
-  // ✅ Marquer la leçon comme terminée
+  // ✅ Marquer la leçon comme terminée - CORRIGÉE
   const handleMarkComplete = async () => {
     if (!activeLesson || !user || !id || !userProgress) return;
+    
+    // ✅ CORRECTION : Utiliser 'token' au lieu de 'auth_token'
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Session expirée, veuillez vous reconnecter');
+      navigate('/login');
+      return;
+    }
     
     const completed = userProgress.completed_lessons || [];
     
@@ -241,6 +352,7 @@ export default function CourseDetail() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({
             userId: user.id,
@@ -249,7 +361,10 @@ export default function CourseDetail() {
           }),
         });
 
-        if (!response.ok) throw new Error('Erreur de sauvegarde');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Erreur de sauvegarde');
+        }
 
         completed.push(activeLesson.id);
         const progress = Math.round((completed.length / getTotalLessons()) * 100);
@@ -266,9 +381,9 @@ export default function CourseDetail() {
         if (progress < 100) {
           setTimeout(handleNextLesson, 1500);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Erreur MAJ progression:', error);
-        toast.error('Erreur de sauvegarde');
+        toast.error(error.message || 'Erreur de sauvegarde');
       }
     }
   };
@@ -615,6 +730,101 @@ export default function CourseDetail() {
                   </div>
                 ))}
               </div>
+
+              {quizzes.length > 0 && (
+                <div className="mt-12">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500">
+                      <Award className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">Quiz du cours</h2>
+                      <p className="text-muted-foreground">
+                        Testez vos connaissances
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {quizzes.map((quiz) => (
+                      <div
+                        key={quiz.id}
+                        className="card-base p-6 hover:shadow-lg transition-shadow"
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg mb-2">{quiz.title}</h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              {quiz.description}
+                            </p>
+                          </div>
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <Award className="w-5 h-5 text-primary" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold">
+                                {quiz.questions_count}
+                              </span>
+                            </div>
+                            <span className="text-muted-foreground">Questions</span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                              <span className="text-green-600 font-semibold">
+                                {quiz.passing_score}%
+                              </span>
+                            </div>
+                            <span className="text-muted-foreground">Requis</span>
+                          </div>
+
+                          {quiz.time_limit > 0 && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                                <Clock className="w-4 h-4 text-orange-600" />
+                              </div>
+                              <span className="text-muted-foreground">
+                                {quiz.time_limit} min
+                              </span>
+                            </div>
+                          )}
+
+                          {quiz.max_attempts > 0 && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                <span className="text-purple-600 font-semibold">
+                                  {quiz.max_attempts}
+                                </span>
+                              </div>
+                              <span className="text-muted-foreground">Tentatives</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <Button
+                          onClick={() => handleStartQuiz(quiz.id)}
+                          className="w-full"
+                          size="lg"
+                        >
+                          <Play className="w-4 h-4 mr-2" />
+                          Commencer le quiz
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {loadingQuizzes && (
+                <div className="mt-12 flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              )}
+              
             </div>
           </div>
         </div>

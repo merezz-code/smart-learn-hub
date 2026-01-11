@@ -1,52 +1,46 @@
 import express from 'express';
 import Lesson from '../models/Lesson.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/course/:courseId', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const lessons = await Lesson.findByCourseId(req.params.courseId);
-    res.json(lessons);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get('/:id', async (req, res) => {
-  try {
-    const lesson = await Lesson.findById(req.params.id);
+    const lesson = await Lesson.findById(req.params.id);   
     if (!lesson) {
       return res.status(404).json({ error: 'Leçon non trouvée' });
     }
     res.json(lesson);
   } catch (error) {
+    console.error('❌ Erreur récupération leçon:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-router.post('/', async (req, res) => {
+/**
+ * GET /api/lessons/course/:courseId
+ * Récupérer toutes les leçons d'un cours
+ */
+router.get('/course/:courseId', authenticateToken, async (req, res) => {
   try {
-    const lesson = await Lesson.create(req.body);
-    res.status(201).json(lesson);
+    const lessons = await Lesson.findByCourseId(req.params.courseId);
+    res.json(lessons);
   } catch (error) {
+    console.error('❌ Erreur récupération leçons:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-router.put('/:id', async (req, res) => {
+/**
+ * GET /api/lessons/module/:moduleId
+ * Récupérer toutes les leçons d'un module
+ */
+router.get('/module/:moduleId', authenticateToken, async (req, res) => {
   try {
-    const lesson = await Lesson.update(req.params.id, req.body);
-    res.json(lesson);
+    const lessons = await Lesson.findByModuleId(req.params.moduleId);
+    res.json(lessons);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.delete('/:id', async (req, res) => {
-  try {
-    await Lesson.delete(req.params.id);
-    res.json({ message: 'Leçon supprimée' });
-  } catch (error) {
+    console.error('❌ Erreur récupération leçons:', error);
     res.status(500).json({ error: error.message });
   }
 });

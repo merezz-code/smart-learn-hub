@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - VERSION SIMPLE SANS SUPABASE
+// src/contexts/AuthContext.tsx - VERSION CORRIGÉE AVEC JWT
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  getToken: () => string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,14 +27,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Charger l'utilisateur depuis localStorage au démarrage
+    // Charger l'utilisateur ET le token depuis localStorage au démarrage
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('token');
+    
+    if (savedUser && savedToken) {
       try {
         setUser(JSON.parse(savedUser));
+        console.log('✅ Session restaurée:', JSON.parse(savedUser).email);
       } catch (error) {
         console.error('Erreur parsing user:', error);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
     }
     setIsLoading(false);
@@ -57,9 +62,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
+      // ✅ CORRECTION CRITIQUE : Stocker AUSSI le token JWT
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
-      console.log('✅ Connexion:', data.user.email);
+      localStorage.setItem('token', data.token);  // ← AJOUT ESSENTIEL
+      
+      console.log('✅ Connexion réussie:', data.user.email);
+      console.log('🔑 Token JWT stocké');
       return true;
     } catch (error) {
       console.error('❌ Erreur réseau login:', error);
@@ -87,9 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
+      // ✅ CORRECTION CRITIQUE : Stocker AUSSI le token JWT
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
-      console.log('✅ Inscription:', data.user.email);
+      localStorage.setItem('token', data.token);  // ← AJOUT ESSENTIEL
+      
+      console.log('✅ Inscription réussie:', data.user.email);
+      console.log('🔑 Token JWT stocké');
       return true;
     } catch (error) {
       console.error('❌ Erreur réseau register:', error);
@@ -102,7 +115,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
-    console.log('✅ Déconnexion');
+    localStorage.removeItem('token');  // ← AJOUT ESSENTIEL
+    console.log('✅ Déconnexion complète (user + token supprimés)');
+  };
+
+  const getToken = (): string | null => {
+    return localStorage.getItem('token');
   };
 
   return (
@@ -113,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      getToken,
     }}>
       {children}
     </AuthContext.Provider>

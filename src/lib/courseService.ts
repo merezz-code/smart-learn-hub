@@ -53,6 +53,33 @@ class CourseService {
     }
   }
 
+// === QUIZZES - MÉTHODES SUPPLÉMENTAIRES ===
+  async getUserQuizResults(userId: string, quizId: string) {
+    try {
+      console.log('📊 Chargement résultats quiz:', { userId, quizId });
+      // ✅ Utiliser backendAPI au lieu de fetch direct
+      const results = await backendAPI.getUserQuizResults(userId, quizId);
+      console.log('✅ Résultats trouvés:', results?.length || 0);
+      return results || [];
+    } catch (error) {
+      console.error('❌ Erreur getUserQuizResults:', error);
+      return []; // Retourner tableau vide pour ne pas bloquer
+    }
+  }
+
+  async saveQuizResult(result: any) {
+    try {
+      console.log('💾 Sauvegarde résultats quiz:', result);
+      // ✅ Utiliser backendAPI au lieu de fetch direct
+      const data = await backendAPI.saveQuizResult(result);
+      console.log('✅ Résultats sauvegardés:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Erreur saveQuizResult:', error);
+      throw error;
+    }
+  }
+
   // === PROGRESS ===
   async markLessonComplete(userId: string, courseId: string, lessonId: string) {
     try {
