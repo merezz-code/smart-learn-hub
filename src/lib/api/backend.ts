@@ -1,4 +1,4 @@
-// src/lib/api/backend.ts - VERSION CORRIGÉE FINALE
+// src/lib/api/backend.ts - CORRECTED VERSION
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 class BackendAPI {
@@ -8,10 +8,10 @@ class BackendAPI {
     this.baseUrl = baseUrl;
   }
 
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  // ✅ FIXED: Made request method public so courseService can use it
+  async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
-    //Récupérer le token JWT
     const token = localStorage.getItem('token');
     
     try {
@@ -24,14 +24,12 @@ class BackendAPI {
         },
       });
 
-      // ✅ Gérer l'expiration du token
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           console.warn('⚠️ Token expiré ou invalide - Redirection vers login');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           
-          // Rediriger vers la page de login (sauf si on est déjà dessus)
           if (!window.location.pathname.includes('/login')) {
             window.location.href = '/login';
           }
@@ -148,7 +146,6 @@ class BackendAPI {
     });
   }
 
-  // ✅ NOUVEAU: Sauvegarder les résultats d'un quiz
   async saveQuizResult(result: any) {
     console.log('📡 Sauvegarde des résultats du quiz');
     return this.request('/quizzes/results', {
@@ -157,7 +154,6 @@ class BackendAPI {
     });
   }
 
-  // ✅ NOUVEAU: Récupérer les résultats d'un utilisateur pour un quiz
   async getUserQuizResults(userId: string, quizId: string) {
     console.log('📡 Récupération des résultats du quiz:', { userId, quizId });
     return this.request(`/quizzes/results/user/${userId}/quiz/${quizId}`);

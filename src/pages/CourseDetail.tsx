@@ -233,11 +233,16 @@ const handleStartQuiz = (quizId: string) => {
             .filter((p: any) => p.completed && p.lesson_id)
             .map((p: any) => p.lesson_id.toString());
           
+          const totalLessons = getTotalLessons();
+          const overallProgress = totalLessons > 0
+            ? Math.min(100, Math.round((completedLessons.length / totalLessons) * 100))
+            : 0;
+          
           const progress = {
             user_id: user.id,
             course_id: id,
             completed_lessons: completedLessons,
-            overall_progress: Math.round((completedLessons.length / getTotalLessons()) * 100),
+            overall_progress: overallProgress,
           };
           
           setUserProgress(progress);
@@ -268,7 +273,6 @@ const handleStartQuiz = (quizId: string) => {
       return;
     }
 
-    // ✅ CORRECTION : Utiliser 'token' au lieu de 'auth_token'
     const token = localStorage.getItem('token');
     if (!token) {
       console.error('❌ Token manquant');
@@ -283,16 +287,15 @@ const handleStartQuiz = (quizId: string) => {
       const allLessons = modules.flatMap(m => m.lessons);
       
       // Créer une entrée de progression
-      const response = await fetch(`${API_URL}/progress/complete`, {
+      const response = await fetch(`${API_URL}/progress/enroll`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          userId: user.id,
           courseId: id,
-          lessonId: null,
+          userId: user.id,
         }),
       });
 
@@ -367,7 +370,10 @@ const handleStartQuiz = (quizId: string) => {
         }
 
         completed.push(activeLesson.id);
-        const progress = Math.round((completed.length / getTotalLessons()) * 100);
+        const totalLessons = getTotalLessons();
+        const progress = totalLessons > 0 
+          ? Math.min(100, Math.round((completed.length / totalLessons) * 100))
+          : 0;
         
         setUserProgress({
           ...userProgress,
@@ -517,7 +523,14 @@ const handleStartQuiz = (quizId: string) => {
                         {userProgress.completed_lessons.length}/{allLessons.length} leçons complétées
                       </p>
                     </div>
-                    <Button className="w-full" size="lg">
+                    <Button className="w-full" size="lg" onClick={() => {
+                      const firstIncompleteLesson = allLessons.find(
+                        l => !userProgress.completed_lessons.includes(l.id.toString())
+                      ) || allLessons[0];
+                      if (firstIncompleteLesson) {
+                        handleLessonClick(firstIncompleteLesson);
+                      }
+                    }}>
                       <Play className="w-4 h-4 mr-2" />
                       Continuer
                     </Button>
@@ -731,7 +744,7 @@ const handleStartQuiz = (quizId: string) => {
                 ))}
               </div>
 
-              {quizzes.length > 0 && (
+              {quizzes.length > 0 && userProgress && userProgress.overall_progress === 100 && (
                 <div className="mt-12">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500">

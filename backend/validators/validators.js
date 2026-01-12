@@ -114,8 +114,8 @@ export const lessonSchema = Joi.object({
   content_type: Joi.string()
     .valid('text', 'video', 'mixed')
     .default('text'),
-  video_url: Joi.string().uri().allow('').optional(),
-  video_thumbnail: Joi.string().uri().allow('').optional(),
+  video_url: Joi.string().uri().allow('', null).optional(),
+  video_thumbnail: Joi.string().uri().allow('', null).optional(),
   duration: Joi.number().min(0).default(0),
   order_index: Joi.number().min(0).default(0),
   is_free_preview: Joi.boolean().default(false)

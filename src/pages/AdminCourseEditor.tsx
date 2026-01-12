@@ -42,6 +42,11 @@ export default function AdminCourseEditor() {
   const [activeTab, setActiveTab] = useState<'content' | 'quiz'>('content');
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [editingQuiz, setEditingQuiz] = useState<any>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [editingModule, setEditingModule] = useState<any>(null);
+  const [moduleToDelete, setModuleToDelete] = useState<any>(null);
+  const [lessonToDelete, setLessonToDelete] = useState<any>(null);
+  const [quizToDelete, setQuizToDelete] = useState<any>(null);
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -98,33 +103,252 @@ export default function AdminCourseEditor() {
     }
   };
 
-  const handleAddModule = async () => {
-    const title = prompt('Titre du nouveau module:');
-    if (!title) return;
+  // Fonction de validation des données du cours
+const validateCourseData = (data: any): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  
+  // Validation du titre
+  if (!data.title || data.title.trim().length < 3) {
+    errors.title = 'Le titre doit contenir au moins 3 caractères';
+  }
+  
+  // Validation de la description
+  if (!data.description || data.description.trim().length < 10) {
+    errors.description = 'La description doit contenir au moins 10 caractères';
+  }
+  
+  // Validation de la description courte
+  if (data.short_description && data.short_description.length > 200) {
+    errors.short_description = 'La description courte ne doit pas dépasser 200 caractères';
+  }
+  
+  // Validation de la catégorie
+  if (!data.category) {
+    errors.category = 'Veuillez sélectionner une catégorie';
+  }
+  
+  // Validation du niveau
+  if (!data.level) {
+    errors.level = 'Veuillez sélectionner un niveau';
+  }
+  
+  // Validation de la durée
+  if (data.duration && data.duration < 0) {
+    errors.duration = 'La durée doit être positive';
+  }
+  
+  // Validation du prix
+  if (data.price && data.price < 0) {
+    errors.price = 'Le prix doit être positif';
+  }
+  
+  // Validation de l'instructeur
+  if (!data.instructor || data.instructor.trim().length < 2) {
+    errors.instructor = 'Le nom de l\'instructeur doit contenir au moins 2 caractères';
+  }
+  
+  return errors;
+};
 
-    try {
-      const response = await fetch(`${API_URL}/admin/modules`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'x-user-role': user?.role || 'admin',
-        },
-        body: JSON.stringify({
-          course_id: id,
-          title,
-          order_index: modules.length,
-        }),
-      });
+function ModuleEditorModal({ module, onSave, onClose }: any) {
+  const [title, setTitle] = useState(module.title || '');
+  const [error, setError] = useState('');
 
-      if (!response.ok) throw new Error('Erreur création module');
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
 
-      toast.success('Module créé !');
-      loadCourseData();
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur lors de la création');
+    if (!title.trim()) {
+      setError('Le titre du module est requis');
+      return;
     }
+
+    onSave(title);
   };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-md p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">
+            {module.id ? 'Modifier le module' : 'Nouveau module'}
+          </h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Titre *</label>
+            <Input
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setError('');
+              }}
+              className={error ? 'border-red-500' : ''}
+            />
+            {error && (
+              <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </p>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Annuler
+            </Button>
+            <Button type="submit">
+              <Save className="w-4 h-4 mr-2" />
+              Sauvegarder
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+const handleSaveModule = async (title: string) => {
+  try {
+    const response = await fetch(`${API_URL}/admin/modules`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'x-user-role': user?.role || 'admin',
+      },
+      body: JSON.stringify({
+        course_id: id,
+        title,
+        order_index: modules.length,
+      }),
+    });
+
+    if (!response.ok) throw new Error();
+
+    toast.success('Module créé avec succès');
+    setEditingModule(null);
+    loadCourseData();
+  } catch {
+    toast.error('Erreur lors de la création du module');
+  }
+};
+
+
+function DeleteModuleModal({ module, onConfirm, onClose }: any) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <Card className="w-full max-w-md p-6 shadow-2xl border-destructive/20 animate-in zoom-in-95 duration-200">
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center">
+            <Trash2 className="w-8 h-8 text-destructive" />
+          </div>
+          
+          <div>
+            <h2 className="text-xl font-bold">Supprimer le module ?</h2>
+            <p className="text-muted-foreground mt-2">
+              Êtes-vous sûr de vouloir supprimer <strong>"{module.title}"</strong> ? 
+              <span className="block text-destructive font-medium mt-1">
+                Cette action supprimera également toutes les leçons contenues dans ce module.
+              </span>
+            </p>
+          </div>
+
+          <div className="flex w-full gap-3 pt-4">
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={onClose}
+            >
+              Annuler
+            </Button>
+            <Button 
+              variant="destructive" 
+              className="flex-1" 
+              onClick={() => onConfirm(module.id)}
+            >
+              Supprimer tout
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function DeleteLessonModal({ lesson, onConfirm, onClose }: any) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <Card className="w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6">
+            <Trash2 className="w-10 h-10 text-amber-600" />
+          </div>
+          
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Supprimer la leçon ?</h2>
+          <p className="text-gray-500 mb-8 leading-relaxed">
+            Êtes-vous sûr de vouloir supprimer la leçon <span className="font-semibold text-gray-700">"{lesson.title}"</span> ? 
+            <br />Cette action est irréversible.
+          </p>
+
+          <div className="flex w-full gap-4">
+            <Button 
+              variant="outline" 
+              className="flex-1 h-12 rounded-xl border-gray-200" 
+              onClick={onClose}
+            >
+              Annuler
+            </Button>
+            <Button 
+              className="flex-1 h-12 rounded-xl bg-destructive hover:bg-destructive/90 text-white" 
+              onClick={() => onConfirm(lesson.id)}
+            >
+              Supprimer
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function DeleteQuizModal({ quiz, onConfirm, onClose }: any) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <Card className="w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6">
+            <Award className="w-10 h-10 text-purple-600" />
+          </div>
+          
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Supprimer le quiz ?</h2>
+          <p className="text-gray-500 mb-8 leading-relaxed">
+            Êtes-vous sûr de vouloir supprimer le quiz <span className="font-semibold text-gray-700">"{quiz.title}"</span> ? 
+            <br />Toutes les questions et les résultats associés seront perdus.
+          </p>
+
+          <div className="flex w-full gap-4">
+            <Button 
+              variant="outline" 
+              className="flex-1 h-12 rounded-xl border-gray-200" 
+              onClick={onClose}
+            >
+              Annuler
+            </Button>
+            <Button 
+              className="flex-1 h-12 rounded-xl bg-destructive hover:bg-destructive/90 text-white" 
+              onClick={() => onConfirm(quiz.id)}
+            >
+              Supprimer
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
   const handleAddLesson = async (moduleId: string) => {
     const module = modules.find(m => m.id === moduleId);
@@ -164,14 +388,14 @@ export default function AdminCourseEditor() {
         is_free_preview: Boolean(lessonData.is_free_preview),
       };
 
-      // ✅ Nettoyer video_url et video_thumbnail
       if (!cleanData.video_url || cleanData.video_url.trim() === '') {
         delete cleanData.video_url;
         delete cleanData.video_thumbnail;
-      }
-      
-      if (cleanData.video_thumbnail && cleanData.video_thumbnail.trim() === '') {
-        delete cleanData.video_thumbnail;
+      } else {
+        // Si video_url existe, garder video_thumbnail seulement s'il a une valeur
+        if (!cleanData.video_thumbnail || cleanData.video_thumbnail.trim() === '') {
+          delete cleanData.video_thumbnail;
+        }
       }
 
       console.log('📤 Données envoyées:', cleanData);
@@ -201,8 +425,6 @@ export default function AdminCourseEditor() {
   };
 
   const handleDeleteModule = async (moduleId: string) => {
-    if (!confirm('Supprimer ce module et toutes ses leçons ?')) return;
-
     try {
       const response = await fetch(`${API_URL}/admin/modules/${moduleId}`, {
         method: 'DELETE',
@@ -223,8 +445,6 @@ export default function AdminCourseEditor() {
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
-    if (!confirm('Supprimer cette leçon ?')) return;
-
     try {
       const response = await fetch(`${API_URL}/admin/lessons/${lessonId}`, {
         method: 'DELETE',
@@ -437,8 +657,6 @@ export default function AdminCourseEditor() {
   };
 
   const handleDeleteQuiz = async (quizId: string) => {
-    if (!confirm('Supprimer ce quiz et toutes ses questions ?')) return;
-
     try {
       const response = await fetch(`${API_URL}/admin/quizzes/${quizId}`, {
         method: 'DELETE',
@@ -521,7 +739,7 @@ export default function AdminCourseEditor() {
           <>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-semibold">Modules et Leçons</h2>
-              <Button onClick={handleAddModule}>
+              <Button onClick={() => setEditingModule({ title: '' })}>
                 <Plus className="w-4 h-4 mr-2" />
                 Nouveau module
               </Button>
@@ -561,10 +779,14 @@ export default function AdminCourseEditor() {
                         </Button>
                         <Button
                           variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteModule(module.id)}
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Évite d'ouvrir/fermer le module
+                            setModuleToDelete(module); // Ouvre le modal de confirmation
+                          }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         >
-                          <Trash2 className="w-4 h-4 text-destructive" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
@@ -607,7 +829,7 @@ export default function AdminCourseEditor() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleDeleteLesson(lesson.id)}
+                                onClick={() => setLessonToDelete(lesson)}
                               >
                                 <Trash2 className="w-4 h-4 text-destructive" />
                               </Button>
@@ -627,7 +849,7 @@ export default function AdminCourseEditor() {
               {modules.length === 0 && (
                 <Card className="p-12 text-center">
                   <p className="text-muted-foreground mb-4">Aucun module créé</p>
-                  <Button onClick={handleAddModule}>
+                  <Button onClick={ModuleEditorModal}>
                     <Plus className="w-4 h-4 mr-2" />
                     Créer le premier module
                   </Button>
@@ -683,7 +905,7 @@ export default function AdminCourseEditor() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteQuiz(quiz.id)}
+                        onClick={() => setQuizToDelete(quiz)}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
@@ -721,6 +943,50 @@ export default function AdminCourseEditor() {
             onClose={() => setEditingQuiz(null)}
           />
         )}
+
+        {editingModule && (
+          <ModuleEditorModal
+            module={editingModule}
+            onSave={handleSaveModule}
+            onClose={() => setEditingModule(null)}
+          />
+        )}
+        
+        {moduleToDelete && (
+          <DeleteModuleModal
+            module={moduleToDelete}
+            onClose={() => setModuleToDelete(null)}
+            onConfirm={(id: number) => {
+              handleDeleteModule(id);
+              setModuleToDelete(null);
+            }}
+          />
+        )}
+
+        {/* modal pour supprimer une leçon */}
+        {lessonToDelete && (
+          <DeleteLessonModal
+            lesson={lessonToDelete}
+            onClose={() => setLessonToDelete(null)}
+            onConfirm={(id: string) => {
+              handleDeleteLesson(id);
+              setLessonToDelete(null);
+            }}
+          />
+        )}
+
+        {/* modal Quiz */}
+        {quizToDelete && (
+          <DeleteQuizModal
+            quiz={quizToDelete}
+            onClose={() => setQuizToDelete(null)}
+            onConfirm={(id: string) => {
+              handleDeleteQuiz(id);
+              setQuizToDelete(null);
+            }}
+          />
+        )}
+
       </div>
     </Layout>
   );
@@ -828,7 +1094,6 @@ function QuizEditorModal({ quiz, onSave, onClose }: any) {
         if (!q.question_text || q.question_text.trim() === '') {
           newErrors[`question_${i}_text`] = 'Le texte de la question est requis';
         }
-
         if (!q.options || q.options.length < 2) {
           newErrors[`question_${i}_options`] = 'Au moins 2 options sont requises';
         } else {
@@ -1140,18 +1405,22 @@ function LessonEditorModal({ lesson, onSave, onClose }: any) {
   const validateForm = () => {
     const newErrors: any = {};
 
-    if (!formData.title || formData.title.trim() === '') {
-      newErrors.title = 'Le titre est requis';
+    if (!formData.title || formData.title.trim().length < 3) {
+      newErrors.title = 'Le titre doit contenir au moins 3 caractères';
     }
 
-    if (formData.duration && (isNaN(formData.duration) || formData.duration < 0)) {
+    if (!formData.content || formData.content.trim() === '') {
+      newErrors.content = 'Le contenu de la leçon est requis';
+    }
+
+    if (formData.duration !== undefined && (isNaN(formData.duration) || formData.duration < 0)) {
       newErrors.duration = 'La durée doit être un nombre positif';
     }
 
-    if ((formData.content_type === 'video' || formData.content_type === 'mixed') && 
-        formData.video_url && 
-        !formData.video_url.match(/^https?:\/\/.+/)) {
-      newErrors.video_url = 'URL invalide';
+    if ((formData.content_type === 'video' || formData.content_type === 'mixed')) {
+      if (formData.video_url && !formData.video_url.match(/^https?:\/\/.+/)) {
+        newErrors.video_url = 'URL invalide (doit commencer par http:// ou https://)';
+      }
     }
 
     setErrors(newErrors);
@@ -1164,15 +1433,25 @@ function LessonEditorModal({ lesson, onSave, onClose }: any) {
     if (validateForm()) {
       onSave(formData);
     } else {
-      toast.error('Veuillez corriger les erreurs du formulaire');
+      toast.error('Veuillez corriger les erreurs de la leçon');
+    }
+  };
+
+  const handleChange = (field: string, value: any) => {
+    setFormData({ ...formData, [field]: value });
+    if (errors[field]) {
+      const newErrors = { ...errors };
+      delete newErrors[field];
+      setErrors(newErrors);
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            {lesson.id ? <Edit className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
             {lesson.id ? 'Modifier la leçon' : 'Nouvelle leçon'}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -1180,68 +1459,81 @@ function LessonEditorModal({ lesson, onSave, onClose }: any) {
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* TITRE */}
           <div>
             <label className="block text-sm font-medium mb-1">Titre *</label>
             <Input
               value={formData.title}
-              onChange={(e) => {
-                setFormData({ ...formData, title: e.target.value });
-                const newErrors = { ...errors };
-                delete newErrors.title;
-                setErrors(newErrors);
-              }}
+              onChange={(e) => handleChange('title', e.target.value)}
               placeholder="Ex: Introduction aux variables"
-              required
-              className={errors.title ? 'border-red-500' : ''}
+              className={errors.title ? 'border-destructive ring-destructive/20' : ''}
             />
             {errors.title && (
-              <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
                 <AlertCircle className="w-4 h-4" />
                 {errors.title}
               </p>
             )}
           </div>
 
+          {/* DESCRIPTION */}
           <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
+            <label className="block text-sm font-medium mb-1 text-muted-foreground">Description (optionnelle)</label>
             <Textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Courte description..."
+              onChange={(e) => handleChange('description', e.target.value)}
+              placeholder="Courte description de ce que l'élève va apprendre..."
               rows={2}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Type de contenu</label>
-            <select
-              className="w-full border rounded-md px-3 py-2"
-              value={formData.content_type}
-              onChange={(e) => setFormData({ ...formData, content_type: e.target.value })}
-            >
-              <option value="text">Texte uniquement</option>
-              <option value="video">Vidéo + Texte</option>
-              <option value="mixed">Mixte</option>
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* TYPE DE CONTENU */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Type de contenu</label>
+              <select
+                className="w-full border rounded-md px-3 py-2 bg-background"
+                value={formData.content_type}
+                onChange={(e) => handleChange('content_type', e.target.value)}
+              >
+                <option value="text">Texte uniquement</option>
+                <option value="video">Vidéo + Texte</option>
+                <option value="mixed">Mixte</option>
+              </select>
+            </div>
+
+            {/* DURÉE */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Durée (minutes)</label>
+              <Input
+                type="number"
+                value={formData.duration}
+                onChange={(e) => handleChange('duration', parseInt(e.target.value))}
+                min="0"
+                className={errors.duration ? 'border-destructive' : ''}
+              />
+              {errors.duration && (
+                <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.duration}
+                </p>
+              )}
+            </div>
           </div>
 
+          {/* URL VIDÉO (Conditionnel) */}
           {(formData.content_type === 'video' || formData.content_type === 'mixed') && (
-            <div>
-              <label className="block text-sm font-medium mb-1">URL de la vidéo (YouTube/Vimeo)</label>
+            <div className="animate-in fade-in slide-in-from-top-2">
+              <label className="block text-sm font-medium mb-1">URL de la vidéo (YouTube/Vimeo) *</label>
               <Input
                 value={formData.video_url}
-                onChange={(e) => {
-                  setFormData({ ...formData, video_url: e.target.value });
-                  const newErrors = { ...errors };
-                  delete newErrors.video_url;
-                  setErrors(newErrors);
-                }}
+                onChange={(e) => handleChange('video_url', e.target.value)}
                 placeholder="https://www.youtube.com/embed/..."
-                className={errors.video_url ? 'border-red-500' : ''}
+                className={errors.video_url ? 'border-destructive' : ''}
               />
               {errors.video_url && (
-                <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                <p className="text-sm text-destructive mt-1 flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
                   {errors.video_url}
                 </p>
@@ -1249,59 +1541,45 @@ function LessonEditorModal({ lesson, onSave, onClose }: any) {
             </div>
           )}
 
+          {/* CONTENU HTML */}
           <div>
-            <label className="block text-sm font-medium mb-1">Contenu (HTML)</label>
+            <label className="block text-sm font-medium mb-1">Contenu de la leçon (HTML) *</label>
             <Textarea
               value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="<h3>Titre</h3><p>Votre contenu...</p>"
-              rows={10}
-              className="font-mono text-sm"
+              onChange={(e) => handleChange('content', e.target.value)}
+              placeholder="<h3>Introduction</h3><p>Votre contenu ici...</p>"
+              rows={8}
+              className={`font-mono text-sm ${errors.content ? 'border-destructive ring-destructive/20' : ''}`}
             />
+            {errors.content && (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                {errors.content}
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Durée (minutes)</label>
-              <Input
-                type="number"
-                value={formData.duration}
-                onChange={(e) => {
-                  setFormData({ ...formData, duration: parseInt(e.target.value) });
-                  const newErrors = { ...errors };
-                  delete newErrors.duration;
-                  setErrors(newErrors);
-                }}
-                min="0"
-                className={errors.duration ? 'border-red-500' : ''}
-              />
-              {errors.duration && (
-                <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {errors.duration}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-end">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.is_free_preview === true || formData.is_free_preview === 1}
-                  onChange={(e) => setFormData({ ...formData, is_free_preview: e.target.checked })}
-                />
-                <span className="text-sm">Aperçu gratuit</span>
-              </label>
-            </div>
+          {/* APERÇU GRATUIT */}
+          <div className="flex items-center space-x-2 py-2">
+            <input
+              type="checkbox"
+              id="is_free_preview"
+              className="w-4 h-4 accent-primary"
+              checked={formData.is_free_preview === true || formData.is_free_preview === 1}
+              onChange={(e) => handleChange('is_free_preview', e.target.checked)}
+            />
+            <label htmlFor="is_free_preview" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Rendre cette leçon disponible en aperçu gratuit
+            </label>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-6 border-t mt-6">
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="px-8">
               <Save className="w-4 h-4 mr-2" />
-              Sauvegarder
+              {lesson.id ? 'Mettre à jour' : 'Créer la leçon'}
             </Button>
           </div>
         </form>
@@ -1309,3 +1587,4 @@ function LessonEditorModal({ lesson, onSave, onClose }: any) {
     </div>
   );
 }
+

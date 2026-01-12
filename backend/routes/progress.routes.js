@@ -49,7 +49,7 @@ router.post('/complete', authenticateToken, async (req, res) => {
   const { userId, courseId, lessonId } = req.body;
   
   // Vérifier que l'utilisateur marque sa propre progression
-  if (req.user.id !== userId) {
+  if (req.user.id !== parseInt(userId)) {
     return res.status(403).json({ error: 'Accès interdit' });
   }
   
@@ -123,7 +123,10 @@ router.post('/enroll', authenticateToken, async (req, res) => {
   const { userId, courseId } = req.body;
   
   // Vérifier que l'utilisateur s'inscrit lui-même
-  if (req.user.id !== userId) {
+  if (req.user.id !== parseInt(userId)) {
+    console.log(req.user.id);
+    console.log(userId);
+    console.log('ùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùùù');
     return res.status(403).json({ error: 'Accès interdit' });
   }
   
