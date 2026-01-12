@@ -1,4 +1,4 @@
-// src/components/courses/QuizComponent.tsx
+// src/components/courses/QuizComponent.tsx - VERSION CORRIGÉE
 import { useState } from 'react';
 import { Quiz, Question, QuestionType, UserAnswer } from '@/types/course';
 import { Button } from '@/components/ui/button';
@@ -48,12 +48,17 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
   };
 
   const checkAnswer = (userAns: string | string[], correctAns: string | string[]): boolean => {
+    console.log('🔍 Vérification réponse:', { userAns, correctAns });
+    
     if (Array.isArray(correctAns)) {
       if (!Array.isArray(userAns)) return false;
       return correctAns.length === userAns.length && 
              correctAns.every(a => userAns.includes(a));
     }
-    return userAns === correctAns;
+    
+    const isCorrect = userAns === correctAns;
+    console.log(`✅ Réponse ${isCorrect ? 'correcte' : 'incorrecte'}`);
+    return isCorrect;
   };
 
   const handleSubmitAnswer = () => {
@@ -72,26 +77,58 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
       pointsEarned,
     };
 
+    console.log('📝 Réponse enregistrée:', answer);
     setUserAnswers([...userAnswers, answer]);
     setIsSubmitted(true);
   };
 
   const handleNextQuestion = () => {
     if (currentQuestion < quiz.questions.length - 1) {
+      // Passer à la question suivante
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
       setIsSubmitted(false);
     } else {
-      // Quiz terminé
-      const totalPoints = userAnswers.reduce((sum, a) => sum + a.pointsEarned, 0);
-      const maxPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
-      const score = Math.round((totalPoints / maxPoints) * 100);
-      onComplete(score, [...userAnswers, {
+      // ✅ CORRECTION CRITIQUE: Calculer le score AVANT d'appeler onComplete
+      
+      // Ajouter la dernière réponse
+      const isCorrect = checkAnswer(selectedAnswer!, question.correctAnswer);
+      const pointsEarned = isCorrect ? question.points : 0;
+      
+      const lastAnswer: UserAnswer = {
         questionId: question.id,
         userAnswer: selectedAnswer!,
-        isCorrect: checkAnswer(selectedAnswer!, question.correctAnswer),
-        pointsEarned: checkAnswer(selectedAnswer!, question.correctAnswer) ? question.points : 0,
-      }]);
+        isCorrect,
+        pointsEarned,
+      };
+      
+      // Toutes les réponses incluant la dernière
+      const allAnswers = [...userAnswers, lastAnswer];
+      
+      console.log('📊 Calcul du score final...');
+      console.log('Toutes les réponses:', allAnswers);
+      
+      // Calculer le total des points obtenus
+      const totalPoints = allAnswers.reduce((sum, a) => {
+        console.log(`Question ${a.questionId}: ${a.pointsEarned} points (${a.isCorrect ? '✅' : '❌'})`);
+        return sum + a.pointsEarned;
+      }, 0);
+      
+      // Calculer le total des points possibles
+      const maxPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
+      
+      // Calculer le pourcentage
+      const score = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
+      
+      console.log('✅ Score calculé:', {
+        totalPoints,
+        maxPoints,
+        score: `${score}%`,
+        answers: allAnswers.length
+      });
+      
+      // Appeler onComplete avec le score et toutes les réponses
+      onComplete(score, allAnswers);
     }
   };
 

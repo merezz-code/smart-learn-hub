@@ -1,5 +1,5 @@
 // backend/models/CourseModule.js
-import db from '../src/db.js';
+import db from '../config/database.js';
 
 class CourseModule {
   static async create(moduleData) {

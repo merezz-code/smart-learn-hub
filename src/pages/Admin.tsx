@@ -1,4 +1,4 @@
-// src/pages/Admin.tsx
+// src/pages/Admin.tsx - VERSION AVEC AUTH
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -27,6 +27,15 @@ import { toast } from 'sonner';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// 🔐 Fonction helper pour obtenir les headers avec token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
+};
+
 export default function Admin() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -53,6 +62,7 @@ export default function Admin() {
       // Charger statistiques
       const statsRes = await fetch(`${API_URL}/admin/stats`, {
         headers: {
+          ...getAuthHeaders(),
           'x-user-role': user.role,
         },
       });
@@ -65,6 +75,7 @@ export default function Admin() {
       // Charger cours
       const coursesRes = await fetch(`${API_URL}/admin/courses`, {
         headers: {
+          ...getAuthHeaders(),
           'x-user-role': user.role,
         },
       });
@@ -86,7 +97,7 @@ export default function Admin() {
       const response = await fetch(`${API_URL}/admin/courses`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'x-user-role': user.role,
         },
         body: JSON.stringify(formData),
@@ -115,7 +126,7 @@ export default function Admin() {
       const response = await fetch(`${API_URL}/admin/courses/${id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'x-user-role': user.role,
         },
         body: JSON.stringify(formData),
@@ -142,6 +153,7 @@ export default function Admin() {
       const response = await fetch(`${API_URL}/admin/courses/${id}`, {
         method: 'DELETE',
         headers: {
+          ...getAuthHeaders(),
           'x-user-role': user.role,
         },
       });
@@ -164,7 +176,7 @@ export default function Admin() {
       const response = await fetch(`${API_URL}/admin/courses/${id}/publish`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'x-user-role': user.role,
         },
         body: JSON.stringify({ published: !currentStatus }),
@@ -400,19 +412,20 @@ interface CourseFormModalProps {
 }
 
 function CourseFormModal({ course, onSave, onClose }: CourseFormModalProps) {
-  const [formData, setFormData] = useState({
-    title: course?.title || '',
-    short_description: course?.short_description || '',
-    description: course?.description || '',
-    category: course?.category || 'programming',
-    level: course?.level || 'beginner',
-    duration: course?.duration || 0,
-    instructor: course?.instructor || '',
-    thumbnail: course?.thumbnail || '',
-    price: course?.price || 0,
-    content: course?.content || '',
-    published: course?.published !== undefined ? course.published : 1,
-  });
+ const [formData, setFormData] = useState({
+  title: course?.title || '',
+  short_description: course?.short_description || '',
+  description: course?.description || '',
+  category: course?.category || 'programming',
+  level: course?.level || 'beginner',
+  duration: course?.duration || 0,
+  instructor: course?.instructor || '',
+  instructor_avatar: course?.instructor_avatar || '', // ✅ Ajouté
+  thumbnail: course?.thumbnail || '',
+  price: course?.price || 0,
+  content: course?.content || '',
+  published: course?.published !== undefined ? course.published : 1,
+});
 
   const [errors, setErrors] = useState<any>({});
 
@@ -447,7 +460,21 @@ function CourseFormModal({ course, onSave, onClose }: CourseFormModalProps) {
       return;
     }
 
-    onSave(formData);
+    // ✅ Nettoyer les données avant envoi
+    const cleanedData = {
+      ...formData,
+      // Convertir published en boolean
+      published: formData.published === 1 || formData.published === true,
+      // Supprimer thumbnail si vide
+      thumbnail: formData.thumbnail.trim() || undefined,
+      // Supprimer les champs vides optionnels
+      short_description: formData.short_description.trim() || undefined,
+      instructor: formData.instructor.trim() || undefined,
+      instructor_avatar: formData.instructor_avatar?.trim() || undefined,
+      content: formData.content.trim() || undefined,
+    };
+
+    onSave(cleanedData);
   };
 
   return (

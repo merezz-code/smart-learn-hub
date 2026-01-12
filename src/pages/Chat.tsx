@@ -4,7 +4,7 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+// import { supabase } from '@/lib/supabase';
 import {
   Bot,
   User,
@@ -77,18 +77,18 @@ Comment puis-je vous aider aujourd’hui ?`,
   const searchCoursesRAG = async (question: string) => {
     const embedding = await getQueryEmbedding(question);
 
-    const { data, error } = await supabase.rpc('match_courses', {
-      query_embedding: embedding,
-      match_threshold: 0.75,
-      match_count: 3,
-    });
+    // const { data, error } = await supabase.rpc('match_courses', {
+    //   query_embedding: embedding,
+    //   match_threshold: 0.75,
+    //   match_count: 3,
+    // });
 
-    if (error) {
-      console.error(error);
-      return [];
-    }
+    // if (error) {
+    //   console.error(error);
+    //   return [];
+    // }
 
-    return data;
+    // return data;
   };
   const generateAnswer = (courses: any[], question: string) => {
     return `
@@ -107,43 +107,43 @@ ${courses.map(c => `- ${c.title}`).join('\n')}
   /* =======================
      Send Message
   ======================= */
-  const handleSend = async () => {
-    if (!inputValue.trim() || isLoading) return;
+  // const handleSend = async () => {
+  //   if (!inputValue.trim() || isLoading) return;
 
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date(),
-    };
+  //   const userMessage: ChatMessage = {
+  //     id: Date.now().toString(),
+  //     role: 'user',
+  //     content: inputValue.trim(),
+  //     timestamp: new Date(),
+  //   };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
+  //   setMessages(prev => [...prev, userMessage]);
+  //   setInputValue('');
+  //   setIsLoading(true);
 
-    const results = await searchCoursesRAG(userMessage.content);
+  //   const results = await searchCoursesRAG(userMessage.content);
 
-    const assistantMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'assistant',
-      content: results.length
-        ? generateAnswer(results, userMessage.content)
-        : "❌ Cette information n’est pas présente dans les cours.",
-      sources: results.map(r => r.title),
-      timestamp: new Date(),
-    };
-
-
+  //   const assistantMessage: ChatMessage = {
+  //     id: Date.now().toString(),
+  //     role: 'assistant',
+  //     content: results.length
+  //       ? generateAnswer(results, userMessage.content)
+  //       : "❌ Cette information n’est pas présente dans les cours.",
+  //     sources: results.map(r => r.title),
+  //     timestamp: new Date(),
+  //   };
 
 
-    setMessages(prev => [...prev, assistantMessage]);
-    setIsLoading(false);
-  };
+
+
+  //   setMessages(prev => [...prev, assistantMessage]);
+  //   setIsLoading(false);
+  // };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      // handleSend();
     }
   };
 
@@ -262,7 +262,7 @@ ${courses.map(c => `- ${c.title}`).join('\n')}
               />
               <Button
                 size="icon"
-                onClick={handleSend}
+                // onClick={handleSend}
                 disabled={isLoading || !inputValue.trim()}
               >
                 <Send className="w-4 h-4" />

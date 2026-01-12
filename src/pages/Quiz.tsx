@@ -1,4 +1,4 @@
-// src/pages/Quiz.tsx
+// src/pages/Quiz.tsx - VERSION CORRIGÉE
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -33,17 +33,40 @@ export default function QuizPage() {
 
     try {
       setLoading(true);
+      console.log('🔍 Chargement du quiz ID:', quizId);
+      
       const quizData = await courseService.getQuizById(quizId);
+      
+      if (!quizData) {
+        throw new Error('Quiz non trouvé');
+      }
+      
+      console.log('✅ Quiz chargé:', quizData);
+      console.log('📝 Nombre de questions:', quizData.questions?.length || 0);
+      
+      // ✅ VÉRIFICATION CRITIQUE
+      if (!quizData.questions || quizData.questions.length === 0) {
+        toast.error('Ce quiz ne contient aucune question');
+        navigate(-1);
+        return;
+      }
+      
       setQuiz(quizData);
 
       // Charger les tentatives précédentes
       if (user) {
-        const results = await courseService.getUserQuizResults(user.id, quizId);
-        setAttemptNumber(results.length + 1);
+        try {
+          const results = await courseService.getUserQuizResults(user.id.toString(), quizId);
+          setAttemptNumber((results?.length || 0) + 1);
+        } catch (error) {
+          console.warn('⚠️ Impossible de charger les résultats précédents:', error);
+          setAttemptNumber(1);
+        }
       }
     } catch (error) {
-      console.error('Erreur chargement quiz:', error);
+      console.error('❌ Erreur chargement quiz:', error);
       toast.error('Impossible de charger le quiz');
+      setTimeout(() => navigate(-1), 2000);
     } finally {
       setLoading(false);
     }
@@ -74,7 +97,7 @@ export default function QuizPage() {
       answers,
       startedAt: new Date(),
       completedAt: new Date(),
-      timeSpent: 0, // TODO: calculer le temps réel
+      timeSpent: 0,
     };
 
     try {
@@ -86,7 +109,7 @@ export default function QuizPage() {
         toast.error(`Score insuffisant. Minimum requis: ${quiz.passingScore}%`);
       }
     } catch (error) {
-      console.error('Erreur sauvegarde résultats:', error);
+      console.error('❌ Erreur sauvegarde résultats:', error);
       toast.error('Erreur lors de la sauvegarde des résultats');
     }
   };
@@ -114,7 +137,10 @@ export default function QuizPage() {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Chargement du quiz...</p>
+          </div>
         </div>
       </Layout>
     );
@@ -125,7 +151,10 @@ export default function QuizPage() {
       <Layout>
         <div className="section-padding text-center">
           <h1 className="text-2xl font-bold mb-4">Quiz non trouvé</h1>
-          <Button onClick={() => navigate(-1)}>Retour</Button>
+          <Button onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Retour
+          </Button>
         </div>
       </Layout>
     );
@@ -140,7 +169,6 @@ export default function QuizPage() {
       <Layout>
         <div className="section-padding">
           <div className="container-custom max-w-2xl">
-            {/* Back Button */}
             <button
               onClick={handleBackToCourse}
               className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
@@ -150,7 +178,6 @@ export default function QuizPage() {
             </button>
 
             <div className="card-base p-8 text-center">
-              {/* Icon */}
               <div className={`w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center ${
                 passed ? 'bg-success/10' : 'bg-destructive/10'
               }`}>
@@ -161,7 +188,6 @@ export default function QuizPage() {
                 )}
               </div>
 
-              {/* Title */}
               <h1 className="text-3xl font-bold mb-2">
                 {passed ? 'Félicitations ! 🎉' : 'Continuez à apprendre !'}
               </h1>
@@ -171,7 +197,6 @@ export default function QuizPage() {
                   : `Vous devez obtenir au moins ${quiz.passingScore}% pour réussir.`}
               </p>
 
-              {/* Score */}
               <div className="bg-muted/50 rounded-2xl p-6 mb-8">
                 <p className="text-5xl font-bold gradient-text mb-2">{Math.round(score)}%</p>
                 <p className="text-muted-foreground">
@@ -179,7 +204,6 @@ export default function QuizPage() {
                 </p>
               </div>
 
-              {/* Stats */}
               <div className="grid grid-cols-2 gap-4 mb-8">
                 <div className="p-4 rounded-lg bg-muted/50">
                   <p className="text-sm text-muted-foreground mb-1">Score obtenu</p>
@@ -191,7 +215,6 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {/* Attempt Info */}
               {quiz.maxAttempts && (
                 <p className="text-sm text-muted-foreground mb-6">
                   Tentative {attemptNumber} 
@@ -199,7 +222,6 @@ export default function QuizPage() {
                 </p>
               )}
 
-              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {(!quiz.maxAttempts || attemptNumber < quiz.maxAttempts) && (
                   <Button variant="outline" onClick={handleRestart}>
@@ -212,7 +234,6 @@ export default function QuizPage() {
                 </Button>
               </div>
 
-              {/* Encouragement Message */}
               {!passed && (
                 <div className="mt-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
                   <p className="text-sm text-muted-foreground">
@@ -232,7 +253,6 @@ export default function QuizPage() {
     <Layout>
       <div className="section-padding">
         <div className="container-custom max-w-3xl">
-          {/* Back Button */}
           <button
             onClick={handleBackToCourse}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
@@ -241,7 +261,6 @@ export default function QuizPage() {
             Retour au cours
           </button>
 
-          {/* Quiz Header */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
               <h1 className="text-2xl font-bold">{quiz.title}</h1>
@@ -256,7 +275,6 @@ export default function QuizPage() {
             )}
           </div>
 
-          {/* Quiz Info */}
           <div className="card-base p-4 mb-6">
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
@@ -267,13 +285,13 @@ export default function QuizPage() {
                 <span className="text-muted-foreground">Score minimum:</span>
                 <span className="font-medium">{quiz.passingScore}%</span>
               </div>
-              {quiz.timeLimit && (
+              {quiz.timeLimit && quiz.timeLimit > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">Temps limite:</span>
                   <span className="font-medium">{quiz.timeLimit} min</span>
                 </div>
               )}
-              {quiz.maxAttempts && (
+              {quiz.maxAttempts && quiz.maxAttempts > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">Tentatives max:</span>
                   <span className="font-medium">{quiz.maxAttempts}</span>
@@ -282,7 +300,6 @@ export default function QuizPage() {
             </div>
           </div>
 
-          {/* Quiz Component */}
           <QuizComponent
             quiz={quiz}
             onComplete={handleQuizComplete}

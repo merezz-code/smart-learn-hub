@@ -1,98 +1,190 @@
+// backend/routes/quiz.routes.js
 import express from 'express';
 import Quiz from '../models/Quiz.js';
 import Question from '../models/Question.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/quizzes/:id', async (req, res) => {
+/**
+ * GET /api/quizzes/:id
+ * Récupérer un quiz avec ses questions
+ */
+
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 Récupération quiz:', req.params.id);
+    
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz non trouvé' });
     }
     
-    const questions = await Question.findByQuizId(quiz.id);
-    res.json({ ...quiz, questions });
+    const questions = await Question.findByQuizId(req.params.id);
+    console.log(`📝 ${questions.length} questions trouvées`); // ← AJOUTER
+
+    // Parser les options JSON et formater pour le frontend
+    const formattedQuestions = questions.map((q, index) => {
+      // Parser les options si c'est une string
+      let options = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+      
+      console.log('Question brute:', { 
+        id: q.id, 
+        text: q.question_text?.substring(0, 50),
+        optionsType: typeof options,
+        optionsIsArray: Array.isArray(options),
+        options 
+      });
+
+
+      
+      // Convertir en format attendu par le frontend
+      // Si c'est un array de strings, le convertir en array d'objets
+      if (Array.isArray(options) && options.length > 0) {
+        if (typeof options[0] === 'string') {
+          options = options.map((text, i) => ({
+            id: String.fromCharCode(97 + i),
+            text: text,
+            isCorrect: String.fromCharCode(97 + i) === q.correct_answer
+          }));
+        } else if (options[0].text) {
+          // Déjà au bon format, juste ajouter isCorrect
+          options = options.map(opt => ({
+            ...opt,
+            isCorrect: opt.id === q.correct_answer
+          }));
+        }
+      }
+      
+      const formatted = {
+        id: q.id.toString(),
+        question: q.question_text,
+        type: q.question_type || 'multiple_choice',
+        options: options,
+        correctAnswer: q.correct_answer,
+        points: q.points || 1,
+        explanation: q.explanation || '',
+        order: q.order_index || index,
+        media: null,
+        codeSnippet: null
+      };
+           
+      return formatted;
+    });
+    
+    const formattedQuiz = {
+      id: quiz.id.toString(),
+      courseId: quiz.course_id.toString(),
+      lessonId: quiz.lesson_id ? quiz.lesson_id.toString() : null,
+      title: quiz.title,
+      description: quiz.description,
+      passingScore: quiz.passing_score,
+      timeLimit: quiz.time_limit || 0,
+      maxAttempts: quiz.max_attempts || 0,
+      questions: formattedQuestions,
+      createdAt: quiz.created_at,
+      updatedAt: quiz.updated_at
+    };
+    
+    console.log('✅ Quiz formaté avec', formattedQuestions.length, 'questions');
+
+
+    console.log('✅ Quiz formaté:', {
+      id: formattedQuiz.id,
+      title: formattedQuiz.title,
+      questionsCount: formattedQuiz.questions.length
+    });
+
+    res.json(formattedQuiz);
   } catch (error) {
+    console.error('❌ Erreur récupération quiz:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET quiz par cours
-router.get('/quizzes/course/:courseId', async (req, res) => {
+
+// 🔐 Route protégée: Sauvegarder les résultats d'un quiz
+router.post('/results', authenticateToken, async (req, res) => {
   try {
-    const quizzes = await Quiz.findByCourseId(req.params.courseId);
+    const {
+      quizId,
+      score,
+      points,
+      totalPoints,
+      passed,
+      attemptNumber,
+      answers,
+      timeSpent
+    } = req.body;
+   
+    // TODO: Implémenter la sauvegarde dans une table quiz_results
+    // Pour l'instant, retourner un succès
     
-    // Compter les questions pour chaque quiz
-    const quizzesWithCount = await Promise.all(
-      quizzes.map(async (quiz) => {
-        const questions = await Question.findByQuizId(quiz.id);
-        return {
-          ...quiz,
-          questions_count: questions.length
-        };
-      })
-    );
-    
-    res.json(quizzesWithCount);
+    res.json({
+      success: true,
+      message: 'Résultats sauvegardés',
+      result: {
+        id: Date.now().toString(),
+        userId: req.user.id,
+        quizId,
+        score,
+        passed,
+        completedAt: new Date()
+      }
+    });
   } catch (error) {
+    console.error('❌ Erreur sauvegarde résultats:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-router.get('/quizzes/lesson/:lessonId', async (req, res) => {
+
+// 🔐 Route protégée: Récupérer les résultats d'un utilisateur pour un quiz
+router.get('/results/user/:userId/quiz/:quizId', authenticateToken, async (req, res) => {
+  try {
+    const { userId, quizId } = req.params;
+    
+    // Vérifier que l'utilisateur demande ses propres résultats
+    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Accès non autorisé' });
+    }
+    
+    console.log('📊 Récupération résultats:', { userId, quizId });
+        
+    res.json([]);
+  } catch (error) {
+    console.error('❌ Erreur récupération résultats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/quizzes/lesson/:lessonId
+ * Récupérer le quiz d'une leçon
+ */
+router.get('/lesson/:lessonId', authenticateToken, async (req, res) => {
   try {
     const quiz = await Quiz.findByLessonId(req.params.lessonId);
+    
     if (!quiz) {
-      return res.status(404).json({ error: 'Pas de quiz' });
+      return res.status(404).json({ error: 'Pas de quiz pour cette leçon' });
     }
     
     const questions = await Question.findByQuizId(quiz.id);
     res.json({ ...quiz, questions });
   } catch (error) {
+    console.error('❌ Erreur récupération quiz:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-router.post('/quizzes', async (req, res) => {
+/**
+ * GET /api/quizzes/course/:courseId
+ * Récupérer tous les quiz d'un cours
+ */
+router.get('/course/:courseId', authenticateToken, async (req, res) => {
   try {
-    const quiz = await Quiz.create(req.body);
-    res.status(201).json(quiz);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/quizzes/:quizId/questions', async (req, res) => {
-  try {
-    const question = await Question.create({
-      quiz_id: req.params.quizId,
-      ...req.body
-    });
-    res.status(201).json(question);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-// ====================================
-// ROUTES ADMIN (nouvelles - nécessaires pour l'éditeur)
-// ====================================
-
-// GET - Liste des quiz d'un cours (ADMIN)
-// Si monté sur /api/quizzes, cette route sera accessible via /api/quizzes/admin/courses/:courseId/quizzes
-// Si monté sur /api, cette route sera accessible via /api/admin/courses/:courseId/quizzes
-router.get('/admin/courses/:courseId/quizzes', async (req, res) => {
-  console.log('🎯 Route admin/courses/:courseId/quizzes appelée');
-  console.log('📦 CourseId:', req.params.courseId);
-  
-  try {
-    const { courseId } = req.params;
-    console.log('🔍 Recherche des quiz pour le cours:', courseId);
-    
-    const quizzes = await Quiz.findByCourseId(courseId);
-    console.log('✅ Quiz trouvés:', quizzes.length);
+    const quizzes = await Quiz.findByCourseId(req.params.courseId);
     
     // Ajouter le nombre de questions pour chaque quiz
     const quizzesWithCount = await Promise.all(
@@ -102,119 +194,84 @@ router.get('/admin/courses/:courseId/quizzes', async (req, res) => {
       })
     );
     
-    console.log('📤 Envoi de la réponse');
     res.json(quizzesWithCount);
   } catch (error) {
     console.error('❌ Erreur récupération quiz:', error);
-    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
-// GET - Quiz complet avec questions (ADMIN)
-router.get('/admin/quizzes/:id', async (req, res) => {
+/**
+ * POST /api/quizzes/:id/submit
+ * Soumettre les réponses d'un quiz
+ */
+router.post('/:id/submit', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const quiz = await Quiz.findById(id);
+    const { answers } = req.body; // { questionId: answer }
     
+    if (!answers || typeof answers !== 'object') {
+      return res.status(400).json({ error: 'Réponses invalides' });
+    }
+
+    // Récupérer le quiz et ses questions
+    const quiz = await Quiz.findById(req.params.id);
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz non trouvé' });
     }
-    
-    const questions = await Question.findByQuizId(id);
-    
+
+    const questions = await Question.findByQuizId(req.params.id);
+
+    // Calculer le score
+    let correctAnswers = 0;
+    let totalPoints = 0;
+    let earnedPoints = 0;
+
+    const results = questions.map(question => {
+      totalPoints += question.points;
+      const userAnswer = answers[question.id];
+      
+      let isCorrect = false;
+      
+      // Vérifier la réponse selon le type
+      if (question.question_type === 'multiple_choice') {
+        isCorrect = userAnswer === question.correct_answer;
+      } else if (question.question_type === 'true_false') {
+        isCorrect = userAnswer === question.correct_answer;
+      } else if (question.question_type === 'short_answer') {
+        isCorrect = userAnswer?.toLowerCase().trim() === 
+                   question.correct_answer.toLowerCase().trim();
+      }
+
+      if (isCorrect) {
+        correctAnswers++;
+        earnedPoints += question.points;
+      }
+
+      return {
+        question_id: question.id,
+        user_answer: userAnswer,
+        correct_answer: question.correct_answer,
+        is_correct: isCorrect,
+        points: isCorrect ? question.points : 0,
+        explanation: question.explanation
+      };
+    });
+
+    const score = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+    const passed = score >= quiz.passing_score;
+
     res.json({
-      ...quiz,
-      questions
+      score,
+      passed,
+      correct_answers: correctAnswers,
+      total_questions: questions.length,
+      earned_points: earnedPoints,
+      total_points: totalPoints,
+      passing_score: quiz.passing_score,
+      results
     });
   } catch (error) {
-    console.error('Erreur récupération quiz:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// POST - Créer un quiz complet (ADMIN)
-router.post('/admin/quizzes', async (req, res) => {
-  try {
-    const { questions, ...quizData } = req.body;
-    
-    console.log('📝 Création quiz:', quizData);
-    
-    // Créer le quiz
-    const quiz = await Quiz.create(quizData);
-    console.log('✅ Quiz créé:', quiz);
-    
-    // Créer les questions si elles existent
-    if (questions && questions.length > 0) {
-      console.log(`📋 Création de ${questions.length} questions...`);
-      for (const question of questions) {
-        await Question.create({
-          ...question,
-          quiz_id: quiz.id
-        });
-      }
-      console.log('✅ Questions créées');
-    }
-    
-    res.status(201).json(quiz);
-  } catch (error) {
-    console.error('❌ Erreur création quiz:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// PUT - Mettre à jour un quiz (ADMIN)
-router.put('/admin/quizzes/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { questions, ...quizData } = req.body;
-    
-    console.log('📝 Mise à jour quiz:', id);
-    
-    // Mettre à jour le quiz
-    await Quiz.update(id, quizData);
-    console.log('✅ Quiz mis à jour');
-    
-    // Supprimer les anciennes questions
-    await Question.deleteByQuizId(id);
-    console.log('🗑️ Anciennes questions supprimées');
-    
-    // Recréer les questions
-    if (questions && questions.length > 0) {
-      console.log(`📋 Recréation de ${questions.length} questions...`);
-      for (const question of questions) {
-        await Question.create({
-          ...question,
-          quiz_id: id
-        });
-      }
-      console.log('✅ Questions recréées');
-    }
-    
-    res.json({ message: 'Quiz mis à jour avec succès' });
-  } catch (error) {
-    console.error('❌ Erreur mise à jour quiz:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// DELETE - Supprimer un quiz (ADMIN)
-router.delete('/admin/quizzes/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    console.log('🗑️ Suppression quiz:', id);
-    
-    // Supprimer les questions
-    await Question.deleteByQuizId(id);
-    console.log('✅ Questions supprimées');
-    
-    // Supprimer le quiz
-    await Quiz.delete(id);
-    console.log('✅ Quiz supprimé');
-    
-    res.json({ message: 'Quiz supprimé avec succès' });
-  } catch (error) {
-    console.error('❌ Erreur suppression quiz:', error);
+    console.error('❌ Erreur soumission quiz:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -1,4 +1,3 @@
-// src/lib/courseService.ts
 import { backendAPI } from './api/backend';
 import { Course, Lesson, Quiz } from '@/types/course';
 
@@ -53,6 +52,31 @@ class CourseService {
     }
   }
 
+// === QUIZZES - MÉTHODES SUPPLÉMENTAIRES ===
+  async getUserQuizResults(userId: string, quizId: string) {
+    try {
+      console.log('📊 Chargement résultats quiz:', { userId, quizId });
+      const results = await backendAPI.getUserQuizResults(userId, quizId);
+      console.log('✅ Résultats trouvés:', results?.length || 0);
+      return results || [];
+    } catch (error) {
+      console.error('❌ Erreur getUserQuizResults:', error);
+      return [];
+    }
+  }
+
+  async saveQuizResult(result: any) {
+    try {
+      console.log('💾 Sauvegarde résultats quiz:', result);
+      const data = await backendAPI.saveQuizResult(result);
+      console.log('✅ Résultats sauvegardés:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Erreur saveQuizResult:', error);
+      throw error;
+    }
+  }
+
   // === PROGRESS ===
   async markLessonComplete(userId: string, courseId: string, lessonId: string) {
     try {
@@ -75,8 +99,77 @@ class CourseService {
   }
 
   async updateLessonNotes(userId: string, courseId: string, lessonId: string, notes: string) {
-    // TODO: Implémenter endpoint notes
     console.log('📝 Notes:', { userId, courseId, lessonId, notes });
+  }
+
+  async getUserStats(userId: string) {
+    try {
+      console.log('📊 Chargement stats utilisateur:', userId);
+      const response = await backendAPI.request(`/users/${userId}/stats`);
+      
+      if (!response) {
+        return {
+          userId,
+          totalCourses: 0,
+          completedCourses: 0,
+          inProgressCourses: 0,
+          totalTimeSpent: 0,
+          averageScore: 0,
+          badges: [],
+          currentStreak: 0,
+          longestStreak: 0,
+          lastActivityDate: new Date(),
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Erreur getUserStats:', error);
+      return {
+        userId,
+        totalCourses: 0,
+        completedCourses: 0,
+        inProgressCourses: 0,
+        totalTimeSpent: 0,
+        averageScore: 0,
+        badges: [],
+        currentStreak: 0,
+        longestStreak: 0,
+        lastActivityDate: new Date(),
+      };
+    }
+  }
+
+  async getEnrolledCourses(userId: string) {
+    try {
+      console.log('📚 Chargement cours inscrits:', userId);
+      const response = await backendAPI.request(`/users/${userId}/enrolled-courses`);
+      
+      if (!response || !Array.isArray(response)) {
+        return [];
+      }
+      
+      return response.map((item: any) => ({
+        ...this.transformCourse(item.course),
+        progress: {
+          id: item.progress.id,
+          userId: item.progress.user_id,
+          courseId: item.progress.course_id,
+          status: item.progress.status,
+          completedLessons: item.progress.completed_lessons || [],
+          currentLessonId: item.progress.current_lesson_id,
+          lastAccessedAt: new Date(item.progress.last_accessed_at),
+          startedAt: new Date(item.progress.started_at),
+          completedAt: item.progress.completed_at ? new Date(item.progress.completed_at) : undefined,
+          timeSpent: item.progress.time_spent || 0,
+          overallProgress: item.progress.overall_progress || 0,
+          certificateId: item.progress.certificate_id,
+        },
+      }));
+    } catch (error) {
+      console.error('❌ Erreur getEnrolledCourses:', error);
+      return [];
+    }
   }
 
   // === TRANSFORMATEURS ===

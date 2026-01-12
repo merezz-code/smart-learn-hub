@@ -1,111 +1,76 @@
 // backend/routes/auth.routes.js
 import express from 'express';
-import db from '../src/db.js';
-import crypto from 'crypto';
+import User from '../models/User.js';
+import { generateToken, authenticateToken } from '../middleware/auth.js';
+import { registerSchema, loginSchema, validate } from '../validators/validators.js';
 
 const router = express.Router();
 
-// Hasher un mot de passe
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
-
-// POST /api/auth/register
-router.post('/register', async (req, res) => {
+/**
+ * POST /api/auth/register
+ * Créer un nouveau compte utilisateur
+ */
+router.post('/register', validate(registerSchema), async (req, res) => {
   const { name, email, password } = req.body;
 
   console.log('📝 Tentative d\'inscription:', { name, email });
 
-  // Validation
-  if (!name || !email || !password) {
-    console.log('❌ Champs manquants');
-    return res.status(400).json({ error: 'Tous les champs sont requis' });
-  }
-
-  if (password.length < 6) {
-    console.log('❌ Mot de passe trop court');
-    return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
-  }
-
   try {
-    // Vérifier si l'email existe déjà
-    const existing = await new Promise((resolve, reject) => {
-      db.get('SELECT id FROM users WHERE email = ?', [email], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
-    if (existing) {
-      console.log('❌ Email déjà utilisé:', email);
-      return res.status(400).json({ error: 'Cet email est déjà utilisé' });
-    }
-
     // Créer l'utilisateur
-    const hashedPassword = hashPassword(password);
+    const user = await User.create({ name, email, password, role: 'student' });
     
-    const userId = await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO users (name, email, password, role, created_at) VALUES (?, ?, ?, ?, ?)',
-        [name, email, hashedPassword, 'student', new Date().toISOString()],
-        function(err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
-        }
-      );
-    });
+    // Générer un token JWT
+    const token = generateToken(user);
 
-    const user = {
-      id: userId,
-      name,
-      email,
-      role: 'student'
-    };
-
-    console.log('✅ Utilisateur créé:', user);
+    console.log('✅ Utilisateur créé:', user.email);
 
     res.status(201).json({
       success: true,
       message: 'Inscription réussie',
-      user
+      user,
+      token
     });
   } catch (error) {
     console.error('❌ Erreur inscription:', error);
-    res.status(500).json({ error: error.message || 'Erreur serveur' });
+    
+    if (error.message === 'Cet email est déjà utilisé') {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Erreur serveur lors de l\'inscription' });
   }
 });
 
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
+/**
+ * POST /api/auth/login
+ * Se connecter avec email et mot de passe
+ */
+router.post('/login', validate(loginSchema), async (req, res) => {
   const { email, password } = req.body;
 
   console.log('🔐 Tentative de connexion:', email);
 
-  if (!email || !password) {
-    console.log('❌ Champs manquants');
-    return res.status(400).json({ error: 'Email et mot de passe requis' });
-  }
-
   try {
-    const hashedPassword = hashPassword(password);
-
-    const user = await new Promise((resolve, reject) => {
-      db.get(
-        'SELECT id, name, email, role FROM users WHERE email = ? AND password = ?',
-        [email, hashedPassword],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
+    // Trouver l'utilisateur par email
+    const user = await User.findByEmail(email);
 
     if (!user) {
-      console.log('❌ Identifiants incorrects');
+      console.log('❌ Utilisateur non trouvé');
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
-    console.log('✅ Connexion réussie:', user.email);
+    // Vérifier le mot de passe
+    const isValidPassword = await User.verifyPassword(password, user.password);
+
+    if (!isValidPassword) {
+      console.log('❌ Mot de passe incorrect');
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    }
+
+    // Générer un token JWT
+    const token = generateToken(user);
+
+    console.log('✅ Connexion réussie:', user.email, '| Rôle:', user.role);
 
     res.json({
       success: true,
@@ -114,34 +79,24 @@ router.post('/login', async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role
-      }
+        role: user.role,
+        avatar: user.avatar
+      },
+      token
     });
   } catch (error) {
     console.error('❌ Erreur connexion:', error);
-    res.status(500).json({ error: error.message || 'Erreur serveur' });
+    res.status(500).json({ error: 'Erreur serveur lors de la connexion' });
   }
 });
 
-// GET /api/auth/me
-router.get('/me', async (req, res) => {
-  const userId = req.headers['x-user-id'];
-
-  if (!userId) {
-    return res.status(401).json({ error: 'Non connecté' });
-  }
-
+/**
+ * GET /api/auth/me
+ * Récupérer les informations de l'utilisateur connecté
+ */
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = await new Promise((resolve, reject) => {
-      db.get(
-        'SELECT id, name, email, role FROM users WHERE id = ?',
-        [userId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
+    const user = await User.findById(req.user.id);
 
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
@@ -150,8 +105,17 @@ router.get('/me', async (req, res) => {
     res.json({ user });
   } catch (error) {
     console.error('❌ Erreur /me:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
+});
+
+/**
+ * POST /api/auth/logout
+ * Se déconnecter (côté client supprime le token)
+ */
+router.post('/logout', authenticateToken, (req, res) => {
+  console.log('✅ Déconnexion utilisateur:', req.user.email);
+  res.json({ success: true, message: 'Déconnexion réussie' });
 });
 
 export default router;
