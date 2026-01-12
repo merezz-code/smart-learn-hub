@@ -41,7 +41,7 @@ router.get('/stats', async (req, res) => {
           (SELECT COUNT(*) FROM lessons) as total_lessons,
           (SELECT COUNT(*) FROM quizzes) as total_quizzes,
           (SELECT COUNT(DISTINCT user_id) FROM user_progress) as active_students,
-          (SELECT COUNT(*) FROM user_progress WHERE completed = 1) as completed_lessons
+          (SELECT COUNT(*) FROM user_progress WHERE completed = 1 AND lesson_id IS NOT NULL) as completed_lessons
         `,
         (err, row) => {
           if (err) reject(err);
@@ -49,7 +49,6 @@ router.get('/stats', async (req, res) => {
         }
       );
     });
-
     // Statistiques des 30 derniers jours
     const recentStats = await new Promise((resolve, reject) => {
       db.all(
@@ -67,8 +66,23 @@ router.get('/stats', async (req, res) => {
       );
     });
 
+    const enrolledCount = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT COUNT(DISTINCT course_id) as enrolled_courses
+         FROM user_progress
+         WHERE lesson_id IS NULL`,
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row?.enrolled_courses || 0);
+        }
+      );
+    });
+
+    console.log('✅ Stats admin:', { ...stats, enrolled_courses: enrolledCount });
+
     res.json({
       ...stats,
+      enrolled_courses: enrolledCount,
       recent_registrations: recentStats
     });
   } catch (error) {

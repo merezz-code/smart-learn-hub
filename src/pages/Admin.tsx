@@ -227,7 +227,7 @@ export default function Admin() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Total Cours</p>
-                  <p className="text-3xl font-bold">{stats.total_courses || 0}</p>
+                  <p className="text-3xl font-bold">{stats?.total_courses || 0}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
                   <BookOpen className="w-6 h-6 text-blue-500" />
@@ -239,7 +239,7 @@ export default function Admin() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Étudiants</p>
-                  <p className="text-3xl font-bold">{stats.total_students || 0}</p>
+                  <p className="text-3xl font-bold">{stats?.total_students || 0}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
                   <Users className="w-6 h-6 text-green-500" />
@@ -251,7 +251,7 @@ export default function Admin() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Leçons</p>
-                  <p className="text-3xl font-bold">{stats.total_lessons || 0}</p>
+                  <p className="text-3xl font-bold">{stats?.total_lessons || 0}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center">
                   <Award className="w-6 h-6 text-orange-500" />
@@ -263,7 +263,7 @@ export default function Admin() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Quiz</p>
-                  <p className="text-3xl font-bold">{stats.total_quizzes || 0}</p>
+                  <p className="text-3xl font-bold">{stats?.total_quizzes || 0}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-purple-500" />
@@ -552,6 +552,7 @@ function CourseFormModal({ course, onSave, onClose }: CourseFormModalProps) {
                 <option value="marketing">Marketing</option>
                 <option value="business">Business</option>
                 <option value="languages">Langues</option>
+                <option value="other">Other</option>
               </select>
             </div>
 
