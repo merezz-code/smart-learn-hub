@@ -1,35 +1,49 @@
 // backend/models/Lesson.js
-import db from '../src/db.js';
+import db from '../config/database.js';
 
 class Lesson {
   static async create(lessonData) {
     const {
       course_id,
+      module_id,
       title,
       description,
       content,
+      content_type,
       video_url,
+      video_file,
       order_index,
-      duration
+      duration,
+      is_free_preview
     } = lessonData;
 
     return new Promise((resolve, reject) => {
       db.run(
         `INSERT INTO lessons (
-          course_id, title, description, content, video_url, order_index, duration
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          course_id, module_id, title, description, content, 
+          content_type, video_url, video_file, order_index, duration, is_free_preview
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           course_id,
+          module_id || null,
           title,
-          description,
-          content,
-          video_url,
+          description || null,
+          content || null,
+          content_type || 'text',
+          video_url || null,
+          video_file || null,
           order_index || 0,
-          duration || 0
+          duration || 0,
+          is_free_preview || 0
         ],
         function(err) {
-          if (err) reject(err);
-          else resolve({ id: this.lastID, ...lessonData });
+          if (err) {
+            console.error('❌ Erreur SQL création leçon:', err);
+            reject(err);
+          } else {
+            console.log('✅ Leçon créée avec ID:', this.lastID);
+            resolve({ id: this.lastID, ...lessonData });
+          }
         }
       );
     });
@@ -42,6 +56,21 @@ class Lesson {
          WHERE course_id = ? 
          ORDER BY order_index ASC`,
         [courseId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      );
+    });
+  }
+
+  static async findByModuleId(moduleId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT * FROM lessons 
+         WHERE module_id = ? 
+         ORDER BY order_index ASC`,
+        [moduleId],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows || []);
@@ -68,9 +97,12 @@ class Lesson {
       title,
       description,
       content,
+      content_type,
       video_url,
+      video_file,
       order_index,
-      duration
+      duration,
+      is_free_preview
     } = lessonData;
 
     return new Promise((resolve, reject) => {
@@ -79,22 +111,33 @@ class Lesson {
           title = ?,
           description = ?,
           content = ?,
+          content_type = ?,
           video_url = ?,
+          video_file = ?,
           order_index = ?,
-          duration = ?
+          duration = ?,
+          is_free_preview = ?
         WHERE id = ?`,
         [
           title,
           description,
           content,
+          content_type,
           video_url,
+          video_file,
           order_index,
           duration,
+          is_free_preview,
           id
         ],
         function(err) {
-          if (err) reject(err);
-          else resolve({ id, ...lessonData });
+          if (err) {
+            console.error('❌ Erreur SQL modification leçon:', err);
+            reject(err);
+          } else {
+            console.log('✅ Leçon modifiée:', id);
+            resolve({ id, ...lessonData });
+          }
         }
       );
     });

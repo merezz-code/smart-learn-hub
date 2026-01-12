@@ -1,5 +1,5 @@
 // backend/models/Quiz.js
-import db from '../src/db.js';
+import db from '../config/database.js';
 
 class Quiz {
   static async create(quizData) {
@@ -135,5 +135,5 @@ class Quiz {
     });
   }
 }
-
+//mais je trouve pas le quiz , puisque je suis pas l'ajoutez comme Admin?
 export default Quiz;

@@ -1,5 +1,5 @@
 // backend/models/UserProgress.js
-import db from '../src/db.js';
+import db from '../config/database.js';
 
 class UserProgress {
   static async create(progressData) {
@@ -189,87 +189,3 @@ class UserProgress {
 }
 
 export default UserProgress;
-
-// const db = require('../src/db');
-
-// class UserProgress {
-//   static async create(progressData) {
-//     const { user_id, course_id, lesson_id, completed, score } = progressData;
-//     return new Promise((resolve, reject) => {
-//       db.run(
-//         `INSERT INTO user_progress (user_id, course_id, lesson_id, completed, score, completed_at) 
-//          VALUES (?, ?, ?, ?, ?, ?)`,
-//         [user_id, course_id, lesson_id, completed || 0, score, completed ? new Date().toISOString() : null],
-//         function(err) {
-//           if (err) reject(err);
-//           else resolve({ id: this.lastID, ...progressData });
-//         }
-//       );
-//     });
-//   }
-
-//   static async findByUserAndCourse(userId, courseId) {
-//     return new Promise((resolve, reject) => {
-//       db.all(
-//         `SELECT * FROM user_progress WHERE user_id = ? AND course_id = ?`,
-//         [userId, courseId],
-//         (err, rows) => {
-//           if (err) reject(err);
-//           else resolve(rows);
-//         }
-//       );
-//     });
-//   }
-
-//   static async markLessonComplete(userId, courseId, lessonId) {
-//     return new Promise((resolve, reject) => {
-//       // Vérifier si existe déjà
-//       db.get(
-//         `SELECT id FROM user_progress WHERE user_id = ? AND lesson_id = ?`,
-//         [userId, lessonId],
-//         (err, row) => {
-//           if (err) return reject(err);
-          
-//           if (row) {
-//             // Update
-//             db.run(
-//               `UPDATE user_progress SET completed = 1, completed_at = ? WHERE id = ?`,
-//               [new Date().toISOString(), row.id],
-//               function(err) {
-//                 if (err) reject(err);
-//                 else resolve({ id: row.id, completed: true });
-//               }
-//             );
-//           } else {
-//             // Insert
-//             db.run(
-//               `INSERT INTO user_progress (user_id, course_id, lesson_id, completed, completed_at) 
-//                VALUES (?, ?, ?, 1, ?)`,
-//               [userId, courseId, lessonId, new Date().toISOString()],
-//               function(err) {
-//                 if (err) reject(err);
-//                 else resolve({ id: this.lastID, completed: true });
-//               }
-//             );
-//           }
-//         }
-//       );
-//     });
-//   }
-
-//   static async getCompletedLessons(userId, courseId) {
-//     return new Promise((resolve, reject) => {
-//       db.all(
-//         `SELECT lesson_id FROM user_progress 
-//          WHERE user_id = ? AND course_id = ? AND completed = 1`,
-//         [userId, courseId],
-//         (err, rows) => {
-//           if (err) reject(err);
-//           else resolve(rows.map(r => r.lesson_id));
-//         }
-//       );
-//     });
-//   }
-// }
-
-// module.exports = UserProgress;

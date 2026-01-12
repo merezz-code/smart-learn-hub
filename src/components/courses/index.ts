@@ -2,7 +2,6 @@
 
 // Export tous les composants de cours
 export { CourseCard } from './CourseCard';
-export { CourseCardSupabase } from './CourseCardSupabase';
 export { LessonPlayer } from './LessonPlayer';
 export { LessonList } from './LessonList';
 export { QuizComponent } from './QuizComponent';

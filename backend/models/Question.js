@@ -1,33 +1,43 @@
 // backend/models/Question.js
-import db from '../src/db.js';
+import db from '../config/database.js';
 
 class Question {
   static async create(questionData) {
     const {
       quiz_id,
       question_text,
+      question_type = 'multiple_choice',
       correct_answer,
       options,
-      points,
-      explanation
+      points = 1,
+      explanation,
+      order_index = 0
     } = questionData;
 
     return new Promise((resolve, reject) => {
       db.run(
         `INSERT INTO questions (
-          quiz_id, question_text, correct_answer, options, points, explanation
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
+          quiz_id, question_text, question_type, correct_answer, 
+          options, points, explanation, order_index
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           quiz_id,
           question_text,
+          question_type, // ✅ Ajouté
           correct_answer,
           JSON.stringify(options),
-          points || 1,
-          explanation
+          points,
+          explanation || null,
+          order_index // ✅ Ajouté
         ],
         function(err) {
-          if (err) reject(err);
-          else resolve({ id: this.lastID, ...questionData });
+          if (err) {
+            console.error('❌ Erreur création question:', err);
+            reject(err);
+          } else {
+            console.log('✅ Question créée avec ID:', this.lastID);
+            resolve({ id: this.lastID, ...questionData });
+          }
         }
       );
     });
@@ -36,17 +46,15 @@ class Question {
   static async findByQuizId(quizId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT * FROM questions WHERE quiz_id = ? ORDER BY id`,
+        'SELECT * FROM questions WHERE quiz_id = ? ORDER BY order_index',
         [quizId],
         (err, rows) => {
-          if (err) reject(err);
-          else {
-            // Parser les options JSON
-            const parsed = (rows || []).map(row => ({
-              ...row,
-              options: JSON.parse(row.options)
-            }));
-            resolve(parsed);
+          if (err) {
+            console.error('❌ Erreur findByQuizId:', err);
+            reject(err);
+          } else {
+            console.log(`✅ ${rows?.length || 0} questions trouvées pour quiz ${quizId}`);
+            resolve(rows || []);
           }
         }
       );
@@ -61,7 +69,7 @@ class Question {
         (err, row) => {
           if (err) reject(err);
           else {
-            if (row) {
+            if (row && row.options) {
               row.options = JSON.parse(row.options);
             }
             resolve(row);
@@ -74,32 +82,43 @@ class Question {
   static async update(id, questionData) {
     const {
       question_text,
+      question_type = 'multiple_choice', // ✅ Valeur par défaut
       correct_answer,
       options,
-      points,
-      explanation
+      points = 1,
+      explanation,
+      order_index = 0 // ✅ Valeur par défaut
     } = questionData;
 
     return new Promise((resolve, reject) => {
       db.run(
         `UPDATE questions SET
           question_text = ?,
+          question_type = ?,
           correct_answer = ?,
           options = ?,
           points = ?,
-          explanation = ?
+          explanation = ?,
+          order_index = ?
         WHERE id = ?`,
         [
           question_text,
+          question_type, // ✅ Ajouté
           correct_answer,
           JSON.stringify(options),
           points,
-          explanation,
+          explanation || null,
+          order_index, // ✅ Ajouté
           id
         ],
         function(err) {
-          if (err) reject(err);
-          else resolve({ id, ...questionData });
+          if (err) {
+            console.error('❌ Erreur mise à jour question:', err);
+            reject(err);
+          } else {
+            console.log('✅ Question mise à jour:', id);
+            resolve({ id, ...questionData });
+          }
         }
       );
     });
@@ -111,8 +130,13 @@ class Question {
         `DELETE FROM questions WHERE id = ?`,
         [id],
         function(err) {
-          if (err) reject(err);
-          else resolve({ deleted: this.changes });
+          if (err) {
+            console.error('❌ Erreur suppression question:', err);
+            reject(err);
+          } else {
+            console.log('✅ Question supprimée:', id);
+            resolve({ deleted: this.changes });
+          }
         }
       );
     });
@@ -124,8 +148,13 @@ class Question {
         `DELETE FROM questions WHERE quiz_id = ?`,
         [quizId],
         function(err) {
-          if (err) reject(err);
-          else resolve({ deleted: this.changes });
+          if (err) {
+            console.error('❌ Erreur suppression questions du quiz:', err);
+            reject(err);
+          } else {
+            console.log('✅ Questions supprimées pour quiz:', quizId, '- Count:', this.changes);
+            resolve({ deleted: this.changes });
+          }
         }
       );
     });
