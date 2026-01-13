@@ -26,6 +26,22 @@ export default function Dashboard() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [enrolledCourses, setEnrolledCourses] = useState<(Course & { progress: UserCourseProgress })[]>([]);
   const [loading, setLoading] = useState(true);
+  // 1. Ajoutez un état pour l'activité
+  const [weeklyActivity, setWeeklyActivity] = useState<Record<number, number>>({});
+
+  // 2. Chargez la donnée dans loadDashboardData
+ 
+
+  // 3. Modifiez le rendu de la section "Activité cette semaine"
+  const days = [
+    { label: 'L', index: 1 },
+    { label: 'M', index: 2 },
+    { label: 'M', index: 3 },
+    { label: 'J', index: 4 },
+    { label: 'V', index: 5 },
+    { label: 'S', index: 6 },
+    { label: 'D', index: 0 },
+  ];
 
   useEffect(() => {
     if (user) {
@@ -38,7 +54,7 @@ export default function Dashboard() {
 
     try {
       setLoading(true);
-      
+
       // Charger les statistiques
       const userStats = await courseService.getUserStats(user.id);
       setStats(userStats);
@@ -46,7 +62,9 @@ export default function Dashboard() {
       // Charger les cours inscrits avec progression
       const courses = await courseService.getEnrolledCourses(user.id);
       setEnrolledCourses(courses);
-      
+       const activity = await courseService.getWeeklyActivity(user.id);
+  setWeeklyActivity(activity);
+
     } catch (error) {
       console.error('Erreur chargement dashboard:', error);
       toast.error('Impossible de charger les données');
@@ -210,22 +228,23 @@ export default function Dashboard() {
                       {formatTime(stats?.totalTimeSpent || 0)}
                     </span>
                   </div>
-                  
+
                   <div className="grid grid-cols-7 gap-2">
-                    {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, index) => {
-                      // Simuler l'activité (à remplacer par les vraies données)
-                      const activity = Math.random() * 100;
+                    {days.map((day) => {
+                      const minutes = weeklyActivity[day.index] || 0;
+                      // On définit l'intensité de la couleur selon le temps (ex: max 120min)
+                      const intensity = Math.min(minutes / 120 * 100, 100);
+
                       return (
-                        <div key={index} className="text-center">
+                        <div key={day.label} className="text-center">
                           <div
-                            className={`w-full aspect-square rounded-lg mb-1 ${
-                              activity > 70 ? 'gradient-bg' :
-                              activity > 30 ? 'bg-primary/40' :
-                              activity > 0 ? 'bg-primary/20' : 'bg-muted'
-                            }`}
-                            title={`${day} - ${Math.round(activity)}min`}
+                            className={`w-full aspect-square rounded-lg mb-1 transition-all ${intensity > 70 ? 'gradient-bg' :
+                                intensity > 30 ? 'bg-primary/40' :
+                                  intensity > 0 ? 'bg-primary/20' : 'bg-muted'
+                              }`}
+                            title={`${day.label} - ${minutes} min passées`}
                           />
-                          <span className="text-xs text-muted-foreground">{day}</span>
+                          <span className="text-xs text-muted-foreground">{day.label}</span>
                         </div>
                       );
                     })}
@@ -242,7 +261,7 @@ export default function Dashboard() {
                   <TrendingUp className="w-5 h-5 text-primary" />
                   Progression globale
                 </h3>
-                
+
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between text-sm mb-1">
@@ -251,7 +270,7 @@ export default function Dashboard() {
                     </div>
                     <Progress value={stats?.averageScore || 0} className="h-2" />
                   </div>
-                  
+
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-muted-foreground">Cours complétés</span>
@@ -259,9 +278,9 @@ export default function Dashboard() {
                         {stats?.completedCourses || 0} / {stats?.totalCourses || 0}
                       </span>
                     </div>
-                    <Progress 
-                      value={stats?.totalCourses ? (stats.completedCourses / stats.totalCourses * 100) : 0} 
-                      className="h-2" 
+                    <Progress
+                      value={stats?.totalCourses ? (stats.completedCourses / stats.totalCourses * 100) : 0}
+                      className="h-2"
                     />
                   </div>
                 </div>
@@ -274,7 +293,7 @@ export default function Dashboard() {
                     <Award className="w-5 h-5 text-warning" />
                     Badges obtenus
                   </h3>
-                  
+
                   <div className="grid grid-cols-3 gap-3">
                     {stats.badges.slice(0, 6).map((userBadge) => (
                       <div

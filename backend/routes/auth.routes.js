@@ -117,5 +117,67 @@ router.post('/logout', authenticateToken, (req, res) => {
   console.log('✅ Déconnexion utilisateur:', req.user.email);
   res.json({ success: true, message: 'Déconnexion réussie' });
 });
+router.get('/:id/stats', async (req, res) => {
+    const userId = req.params.id;
+
+    try {
+        // 1. Calculer les statistiques depuis la table user_progress
+        // On récupère le nombre de cours uniques, la moyenne des scores et les cours terminés
+        const statsQuery = `
+            SELECT 
+                COUNT(DISTINCT course_id) as total_courses,
+                COUNT(DISTINCT CASE WHEN completed = 1 THEN course_id END) as completed_courses,
+                AVG(CASE WHEN score > 0 THEN score END) as average_score
+            FROM user_progress 
+            WHERE user_id = ?`;
+
+        const [stats] = await db.query(statsQuery, [userId]);
+
+        // 2. Envoyer la réponse formatée pour le CourseService
+        res.json({
+            user_id: userId,
+            total_courses: stats.total_courses || 0,
+            completed_courses: stats.completed_courses || 0,
+            in_progress_courses: stats.total_courses || 0,
+            average_score: stats.average_score || 0,
+            total_time_spent: 0,
+            current_streak: 1,
+            badges: [] // Vous pourrez lier votre table badges ici plus tard
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Erreur serveur lors du calcul des stats" });
+    }
+});
+
+router.get('/:id/enrolled-courses', async (req, res) => {
+    const userId = req.params.id;
+    try {
+        // Jointure entre les cours et la progression de l'utilisateur
+        const query = `
+            SELECT c.*, p.completed, p.score, p.updated_at as last_accessed
+            FROM courses c
+            INNER JOIN user_progress p ON c.id = p.course_id
+            WHERE p.user_id = ?
+            GROUP BY c.id`;
+
+        const [courses] = await db.query(query, [userId]);
+        
+        // On formate pour que le transformateur du frontend s'y retrouve
+        const formatted = courses.map(c => ({
+            course: c,
+            progress: {
+                user_id: userId,
+                course_id: c.id,
+                overall_progress: c.completed ? 100 : 0, // À affiner selon le nombre de leçons
+                status: 'in-progress'
+            }
+        }));
+
+        res.json(formatted);
+    } catch (error) {
+        res.status(500).json({ error: "Erreur serveur" });
+    }
+});
 
 export default router;
