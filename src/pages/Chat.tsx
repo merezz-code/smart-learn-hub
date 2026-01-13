@@ -103,7 +103,7 @@ ${c.content.slice(0, 300)}...
 ${courses.map(c => `- ${c.title}`).join('\n')}
 `;
   };
-  
+
   /* =======================
      Send Message
   ======================= */
@@ -139,11 +139,66 @@ ${courses.map(c => `- ${c.title}`).join('\n')}
   //   setMessages(prev => [...prev, assistantMessage]);
   //   setIsLoading(false);
   // };
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),          // mieux que Date.now() pour éviter collisions
+      role: 'user',
+      content: inputValue.trim(),
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue('');
+    setIsLoading(true);
+
+    try {
+      // Dans Chat.tsx, remplacez la ligne du fetch :
+      const res = await fetch('http://localhost:3000/api/rag/ask', { // On force le port 3000
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ question: userMessage.content }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Erreur ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: data.answer || "Je n'ai pas trouvé de réponse dans les cours pour le moment.",
+        sources: data.sources ?? [],
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err: any) {
+      console.error('Erreur chat:', err);
+
+      const errorMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `❌ ${err.message || "Erreur de connexion au serveur IA"}`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      // handleSend();
+      handleSend();
     }
   };
 
@@ -197,11 +252,13 @@ ${courses.map(c => `- ${c.title}`).join('\n')}
                     : 'gradient-bg text-primary-foreground'}`}>
                   {msg.content}
 
-                  {msg.sources && (
+                  {msg.sources && msg.sources.length > 0 && (
                     <div className="mt-3 pt-2 border-t text-xs text-muted-foreground">
                       📚 Sources :
-                      <ul className="list-disc ml-4">
-                        {msg.sources.map(s => <li key={s}>{s}</li>)}
+                      <ul className="list-disc ml-4 mt-1">
+                        {msg.sources.map((s, i) => (
+                          <li key={i}>{s}</li>  // ou <a href={url si tu en as}>{s}</a>
+                        ))}
                       </ul>
                     </div>
                   )}
@@ -256,13 +313,18 @@ ${courses.map(c => `- ${c.title}`).join('\n')}
               <Input
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
                 placeholder="Posez une question liée au cours..."
                 disabled={isLoading}
               />
               <Button
                 size="icon"
-                // onClick={handleSend}
+                onClick={handleSend}
                 disabled={isLoading || !inputValue.trim()}
               >
                 <Send className="w-4 h-4" />

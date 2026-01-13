@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import courseRoutes from './routes/course.routes.js';
 import lessonRoutes from './routes/lesson.routes.js';
+import router from './routes/rag.routes.js';
 import quizRoutes from './routes/quiz.routes.js';
 import progressRoutes from './routes/progress.routes.js';
 
@@ -43,6 +44,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/rag', router);
 
 // Health check
 app.get('/health', (req, res) => {
