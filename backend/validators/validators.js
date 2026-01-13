@@ -53,7 +53,7 @@ export const courseSchema = Joi.object({
     }),
   short_description: Joi.string().max(500),
   category: Joi.string()
-    .valid('programming', 'design', 'business', 'marketing', 'data-science', 'language', 'other')
+    .valid('programming', 'design', 'business', 'marketing', 'data-science', 'language', 'other','mobile_development','web_development')
     .required()
     .messages({
       'any.only': 'Catégorie invalide',

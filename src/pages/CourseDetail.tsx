@@ -1,4 +1,4 @@
-// src/pages/CourseDetail.tsx - VERSION FINALE CORRIGÉE
+// src/pages/CourseDetail.tsx - SAME UI, FIXED PROGRESS ONLY
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
@@ -72,18 +72,8 @@ interface Quiz {
   questions_count: number;
 }
 
-
-// 🔐 Fonction helper pour obtenir les headers avec token - CORRIGÉE
 const getAuthHeaders = () => {
-  // ✅ CORRECTION : Utiliser 'token' au lieu de 'auth_token'
   const token = localStorage.getItem('token');
-  
-  if (!token) {
-    console.warn('⚠️ Aucun token trouvé dans localStorage');
-  } else {
-    console.log('✅ Token trouvé:', token.substring(0, 20) + '...');
-  }
-  
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -108,10 +98,8 @@ export default function CourseDetail() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
 
-
-  // 🔍 DEBUG : Vérifier le token au chargement
   useEffect(() => {
-    const token = localStorage.getItem('token'); // ✅ CORRECTION
+    const token = localStorage.getItem('token');
     console.log('🔍 État Auth:', {
       hasToken: !!token,
       isAuthenticated,
@@ -120,7 +108,6 @@ export default function CourseDetail() {
     });
   }, [user, isAuthenticated]);
 
-  // ⏱️ Timer temps passé
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeSpent(Math.floor((Date.now() - startTime) / 60000));
@@ -128,12 +115,11 @@ export default function CourseDetail() {
     return () => clearInterval(interval);
   }, [startTime]);
 
-  // 📚 Charger les données du cours
   useEffect(() => {
     if (id) {
-    loadCourseData();
-    loadQuizzes();
-  }
+      loadCourseData();
+      loadQuizzes();
+    }
   }, [id, user]);
 
   const loadCourseData = async () => {
@@ -143,7 +129,6 @@ export default function CourseDetail() {
       setLoading(true);
       console.log('🔍 Chargement cours ID:', id);
       
-      // 1️⃣ Charger le cours (public, pas besoin de token)
       const courseRes = await fetch(`${API_URL}/courses/${id}`);
       if (!courseRes.ok) throw new Error('Cours non trouvé');
       
@@ -151,7 +136,6 @@ export default function CourseDetail() {
       console.log('✅ Cours chargé:', courseData.title);
       setCourse(courseData);
 
-      // 2️⃣ Charger les modules avec leçons
       const modulesRes = await fetch(`${API_URL}/courses/${id}/modules`, {
         headers: getAuthHeaders(),
       });
@@ -164,13 +148,13 @@ export default function CourseDetail() {
         if (modulesData.length > 0) {
           setExpandedModules([modulesData[0].id.toString()]);
         }
+
+        // ✅ FIX: Load progress AFTER modules are set
+        if (isAuthenticated && user) {
+          await loadUserProgressWithModules(modulesData);
+        }
       } else {
         console.warn('⚠️ Erreur chargement modules:', modulesRes.status);
-      }
-
-      // 3️⃣ Charger progression utilisateur
-      if (isAuthenticated && user) {
-        await loadUserProgress();
       }
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
@@ -181,61 +165,65 @@ export default function CourseDetail() {
   };
 
   const loadQuizzes = async () => {
-  if (!id) return;
-  
-  try {
-    setLoadingQuizzes(true);
-    console.log('📚 Chargement des quiz du cours:', id);
+    if (!id) return;
     
-    const response = await fetch(`${API_URL}/quizzes/course/${id}`, {
-      headers: getAuthHeaders(),
-    });
+    try {
+      setLoadingQuizzes(true);
+      console.log('📚 Chargement des quiz du cours:', id);
+      
+      const response = await fetch(`${API_URL}/quizzes/course/${id}`, {
+        headers: getAuthHeaders(),
+      });
 
-    if (!response.ok) {
-      throw new Error('Erreur chargement quiz');
+      if (!response.ok) {
+        throw new Error('Erreur chargement quiz');
+      }
+
+      const quizzesData = await response.json();
+      console.log('✅ Quiz chargés:', quizzesData.length);
+      setQuizzes(quizzesData);
+    } catch (error) {
+      console.error('❌ Erreur chargement quiz:', error);
+    } finally {
+      setLoadingQuizzes(false);
     }
+  };
 
-    const quizzesData = await response.json();
-    console.log('✅ Quiz chargés:', quizzesData.length);
-    setQuizzes(quizzesData);
-  } catch (error) {
-    console.error('❌ Erreur chargement quiz:', error);
-    // Ne pas afficher d'erreur si pas de quiz, c'est normal
-  } finally {
-    setLoadingQuizzes(false);
-  }
-};
+  const handleStartQuiz = (quizId: string) => {
+    if (!isAuthenticated) {
+      toast.error('Veuillez vous connecter pour passer le quiz');
+      navigate('/login');
+      return;
+    }
+    navigate(`/quiz/${quizId}`);
+  };
 
-const handleStartQuiz = (quizId: string) => {
-  if (!isAuthenticated) {
-    toast.error('Veuillez vous connecter pour passer le quiz');
-    navigate('/login');
-    return;
-  }
-  navigate(`/quiz/${quizId}`);
-};
-
-
-  // 📊 Charger la progression
-  const loadUserProgress = async () => {
+  // ✅ FIX: Load progress with modules parameter
+  const loadUserProgressWithModules = async (modulesData: CourseModule[]) => {
     if (!user || !id) return;
     
     try {
+      console.log('📊 Chargement progression utilisateur');
       const response = await fetch(`${API_URL}/progress/user/${user.id}/course/${id}`, {
         headers: getAuthHeaders(),
       });
       
       if (response.ok) {
         const progressData = await response.json();
+        console.log('📊 Données progression:', progressData);
         
         if (progressData && progressData.length > 0) {
+          // Get completed lessons
           const completedLessons = progressData
             .filter((p: any) => p.completed && p.lesson_id)
             .map((p: any) => p.lesson_id.toString());
           
-          const totalLessons = getTotalLessons();
+          // Calculate total lessons from passed modules
+          const totalLessons = modulesData.reduce((sum, m) => sum + m.lessons.length, 0);
+          
+          // ✅ FIX: Calculate progress correctly
           const overallProgress = totalLessons > 0
-            ? Math.min(100, Math.round((completedLessons.length / totalLessons) * 100))
+            ? Math.round((completedLessons.length / totalLessons) * 100)
             : 0;
           
           const progress = {
@@ -246,10 +234,15 @@ const handleStartQuiz = (quizId: string) => {
           };
           
           setUserProgress(progress);
+          console.log('✅ Progression chargée:', { 
+            completed: completedLessons.length, 
+            total: totalLessons, 
+            progress: overallProgress 
+          });
           
-          // Charger la première leçon
-          const allLessons = modules.flatMap(m => m.lessons);
-          if (allLessons.length > 0) {
+          // Load first lesson if no active lesson
+          const allLessons = modulesData.flatMap(m => m.lessons);
+          if (allLessons.length > 0 && !activeLesson) {
             setActiveLesson(allLessons[0]);
           }
         }
@@ -261,11 +254,17 @@ const handleStartQuiz = (quizId: string) => {
     }
   };
 
+  // ✅ Keep old function for backward compatibility
+  const loadUserProgress = async () => {
+    if (!user || !id || modules.length === 0) return;
+    await loadUserProgressWithModules(modules);
+  };
+
   const getTotalLessons = () => {
     return modules.reduce((sum, m) => sum + m.lessons.length, 0);
   };
 
-  // ✅ Inscription au cours - CORRIGÉE
+  // ✅ FIX: Enrollment
   const handleEnroll = async () => {
     if (!isAuthenticated || !user) {
       toast.error('Connectez-vous pour vous inscrire');
@@ -281,12 +280,7 @@ const handleStartQuiz = (quizId: string) => {
       return;
     }
 
-    console.log('🔑 Token présent pour inscription');
-
     try {
-      const allLessons = modules.flatMap(m => m.lessons);
-      
-      // Créer une entrée de progression
       const response = await fetch(`${API_URL}/progress/enroll`, {
         method: 'POST',
         headers: {
@@ -307,6 +301,7 @@ const handleStartQuiz = (quizId: string) => {
       const result = await response.json();
       console.log('✅ Inscription réussie:', result);
 
+      // ✅ FIX: Set initial progress state
       setUserProgress({
         user_id: user.id,
         course_id: id,
@@ -314,6 +309,7 @@ const handleStartQuiz = (quizId: string) => {
         overall_progress: 0,
       });
       
+      const allLessons = modules.flatMap(m => m.lessons);
       if (allLessons.length > 0) {
         setActiveLesson(allLessons[0]);
       }
@@ -325,21 +321,18 @@ const handleStartQuiz = (quizId: string) => {
     }
   };
 
-  // 🎯 Cliquer sur une leçon
   const handleLessonClick = async (lesson: Lesson) => {
     if (!userProgress) {
       toast.error('Inscrivez-vous d\'abord au cours');
       return;
     }
-    
     setActiveLesson(lesson);
   };
 
-  // ✅ Marquer la leçon comme terminée - CORRIGÉE
+  // ✅ FIX: Mark lesson complete and update progress correctly
   const handleMarkComplete = async () => {
     if (!activeLesson || !user || !id || !userProgress) return;
     
-    // ✅ CORRECTION : Utiliser 'token' au lieu de 'auth_token'
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error('Session expirée, veuillez vous reconnecter');
@@ -347,9 +340,9 @@ const handleStartQuiz = (quizId: string) => {
       return;
     }
     
-    const completed = userProgress.completed_lessons || [];
+    const completed = [...(userProgress.completed_lessons || [])];
     
-    if (!completed.includes(activeLesson.id)) {
+    if (!completed.includes(activeLesson.id.toString())) {
       try {
         const response = await fetch(`${API_URL}/progress/complete`, {
           method: 'POST',
@@ -369,12 +362,16 @@ const handleStartQuiz = (quizId: string) => {
           throw new Error(errorData.error || 'Erreur de sauvegarde');
         }
 
-        completed.push(activeLesson.id);
+        // ✅ FIX: Add lesson to completed array
+        completed.push(activeLesson.id.toString());
+        
+        // ✅ FIX: Recalculate progress correctly
         const totalLessons = getTotalLessons();
         const progress = totalLessons > 0 
-          ? Math.min(100, Math.round((completed.length / totalLessons) * 100))
+          ? Math.round((completed.length / totalLessons) * 100)
           : 0;
         
+        // ✅ FIX: Update state with correct progress
         setUserProgress({
           ...userProgress,
           completed_lessons: completed,
@@ -383,7 +380,6 @@ const handleStartQuiz = (quizId: string) => {
         
         toast.success(progress === 100 ? 'Cours terminé ! 🎊' : 'Leçon complétée ! ✅');
         
-        // Auto-passer à la suivante
         if (progress < 100) {
           setTimeout(handleNextLesson, 1500);
         }
@@ -394,17 +390,14 @@ const handleStartQuiz = (quizId: string) => {
     }
   };
 
-  // 💾 Sauvegarder les notes
   const handleSaveNotes = async () => {
     toast.success('Notes sauvegardées ! 📝');
   };
 
-  // 🔖 Favoris
   const handleBookmark = () => {
     toast.success('Ajouté aux favoris ! 🔖');
   };
 
-  // ➡️ Leçon suivante
   const handleNextLesson = () => {
     const allLessons = modules.flatMap(m => m.lessons);
     const idx = allLessons.findIndex(l => l.id === activeLesson?.id);
@@ -415,7 +408,6 @@ const handleStartQuiz = (quizId: string) => {
     }
   };
 
-  // ⬅️ Leçon précédente
   const handlePreviousLesson = () => {
     const allLessons = modules.flatMap(m => m.lessons);
     const idx = allLessons.findIndex(l => l.id === activeLesson?.id);
@@ -667,10 +659,10 @@ const handleStartQuiz = (quizId: string) => {
                     <Button 
                       className="w-full justify-start"
                       onClick={handleMarkComplete}
-                      disabled={userProgress?.completed_lessons.includes(activeLesson.id)}
+                      disabled={userProgress?.completed_lessons.includes(activeLesson.id.toString())}
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      {userProgress?.completed_lessons.includes(activeLesson.id) ? 'Complétée' : 'Marquer terminée'}
+                      {userProgress?.completed_lessons.includes(activeLesson.id.toString()) ? 'Complétée' : 'Marquer terminée'}
                     </Button>
                   </div>
                 </div>
@@ -744,6 +736,7 @@ const handleStartQuiz = (quizId: string) => {
                 ))}
               </div>
 
+              {/* 🏆 QUIZ */}
               {quizzes.length > 0 && userProgress && userProgress.overall_progress === 100 && (
                 <div className="mt-12">
                   <div className="flex items-center gap-3 mb-6">
@@ -837,7 +830,6 @@ const handleStartQuiz = (quizId: string) => {
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               )}
-              
             </div>
           </div>
         </div>
