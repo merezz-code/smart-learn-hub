@@ -102,8 +102,10 @@ router.get('/:id/weekly-activity', async (req, res) => {
     // On initialise un tableau de 7 jours (0=Dimanche, 1=Lundi, etc. pour SQLite)
     const activityMap = {};
     rows.forEach(row => {
-      activityMap[row.day_of_week] = row.total_minutes;
+      activityMap[Number(row.day_of_week)] = Number(row.total_minutes);
+
     });
+    console.log('📅 Weekly activity for user', userId, activityMap);
 
     res.json(activityMap);
   } catch (error) {

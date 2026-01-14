@@ -174,7 +174,10 @@ export default function Dashboard() {
 
                 {enrolledCourses.length > 0 ? (
                   <div className="space-y-4">
-                    {enrolledCourses.slice(0, 3).map((item) => (
+                    {enrolledCourses.sort((a, b) =>
+  new Date(b.progress.lastAccessedAt).getTime() -
+  new Date(a.progress.lastAccessedAt).getTime()
+).map((item) => (
                       <Link key={item.id} to={`/course/${item.id}`}>
                         <div className="card-interactive p-4 flex gap-4">
                           <img

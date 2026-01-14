@@ -147,12 +147,22 @@ class CourseService {
     }
   }
   async getWeeklyActivity(userId: string): Promise<Record<number, number>> {
-    try {
-      return await backendAPI.request(`/dash/${userId}/weekly-activity`);
-    } catch (error) {
-      return {};
-    }
+  try {
+    const data = await backendAPI.request(`/dash/${userId}/weekly-activity`);
+
+    // 🔥 conversion string -> number
+    const parsed: Record<number, number> = {};
+    Object.keys(data).forEach(key => {
+      parsed[Number(key)] = data[key];
+    });
+
+    return parsed;
+  } catch (error) {
+    console.error('❌ Erreur weekly activity:', error);
+    return {};
   }
+}
+
 
   private getDefaultStats(userId: string): UserStats {
     return {
