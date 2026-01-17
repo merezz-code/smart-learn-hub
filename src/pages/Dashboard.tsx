@@ -219,7 +219,7 @@ export default function Dashboard() {
               </div>
 
               {/* Weekly Activity */}
-              <div>
+              {/* <div>
                 <h2 className="text-xl font-semibold mb-4">Activité cette semaine</h2>
                 <div className="card-base p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -253,7 +253,7 @@ export default function Dashboard() {
                     })}
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Sidebar */}

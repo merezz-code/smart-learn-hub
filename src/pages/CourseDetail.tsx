@@ -546,7 +546,107 @@ export default function CourseDetail() {
         <div className="container mx-auto max-w-7xl px-4 py-8">
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
-              {isEnrolled && activeLesson ? (
+              {/* 🏆 AFFICHAGE PRINCIPAL SELON L'ÉTAT */}
+                {/* 🏆 AFFICHAGE PRINCIPAL SELON L'ÉTAT */}
+                {!isEnrolled ? (
+                  /* ÉTAT 1 : NON INSCRIT */
+                  <div className="card-base p-12 text-center">
+                    <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">Contenu verrouillé</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Inscrivez-vous pour accéder au contenu du cours
+                    </p>
+                    <Button onClick={handleEnroll}>S'inscrire maintenant</Button>
+                  </div>
+                ) : userProgress?.overall_progress === 100 && quizzes.length > 0 ? (
+                  /* ÉTAT 2 : COURS TERMINÉ -> AFFICHER LES QUIZ À LA PLACE DU CONTENU */
+                  <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="flex items-center gap-3 mb-6 p-6 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-2xl border border-yellow-500/20">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500">
+                        <Award className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold">Félicitations ! 🎉</h2>
+                        <p className="text-muted-foreground">
+                          Vous avez terminé toutes les leçons. Il est temps de valider vos acquis.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-6">
+                      {quizzes.map((quiz) => (
+                        <div
+                          key={quiz.id}
+                          className="card-base p-6 hover:shadow-lg transition-shadow"
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-2">{quiz.title}</h3>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                {quiz.description}
+                              </p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-primary/10">
+                              <Award className="w-5 h-5 text-primary" />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                <span className="text-blue-600 font-semibold">
+                                  {quiz.questions_count}
+                                </span>
+                              </div>
+                              <span className="text-muted-foreground">Questions</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                                <span className="text-green-600 font-semibold">
+                                  {quiz.passing_score}%
+                                </span>
+                              </div>
+                              <span className="text-muted-foreground">Requis</span>
+                            </div>
+
+                            {quiz.time_limit > 0 && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                                  <Clock className="w-4 h-4 text-orange-600" />
+                                </div>
+                                <span className="text-muted-foreground">
+                                  {quiz.time_limit} min
+                                </span>
+                              </div>
+                            )}
+
+                            {quiz.max_attempts > 0 && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                  <span className="text-purple-600 font-semibold">
+                                    {quiz.max_attempts}
+                                  </span>
+                                </div>
+                                <span className="text-muted-foreground">Tentatives</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <Button
+                            onClick={() => handleStartQuiz(quiz.id)}
+                            className="w-full"
+                            size="lg"
+                          >
+                            <Play className="w-4 h-4 mr-2" />
+                            Commencer le quiz
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : activeLesson ? (
+                  /* ÉTAT 3 : EN COURS - AFFICHAGE NORMAL DE LA LEÇON */
                 <>
                   {/* 📌 HEADER LEÇON */}
                   <div className="card-base p-4 flex justify-between items-center">
@@ -737,93 +837,7 @@ export default function CourseDetail() {
               </div>
 
               {/* 🏆 QUIZ */}
-              {quizzes.length > 0 && userProgress && userProgress.overall_progress === 100 && (
-                <div className="mt-12">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500">
-                      <Award className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold">Quiz du cours</h2>
-                      <p className="text-muted-foreground">
-                        Testez vos connaissances
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {quizzes.map((quiz) => (
-                      <div
-                        key={quiz.id}
-                        className="card-base p-6 hover:shadow-lg transition-shadow"
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-2">{quiz.title}</h3>
-                            <p className="text-sm text-muted-foreground mb-4">
-                              {quiz.description}
-                            </p>
-                          </div>
-                          <div className="p-2 rounded-lg bg-primary/10">
-                            <Award className="w-5 h-5 text-primary" />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                              <span className="text-blue-600 font-semibold">
-                                {quiz.questions_count}
-                              </span>
-                            </div>
-                            <span className="text-muted-foreground">Questions</span>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                              <span className="text-green-600 font-semibold">
-                                {quiz.passing_score}%
-                              </span>
-                            </div>
-                            <span className="text-muted-foreground">Requis</span>
-                          </div>
-
-                          {quiz.time_limit > 0 && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                                <Clock className="w-4 h-4 text-orange-600" />
-                              </div>
-                              <span className="text-muted-foreground">
-                                {quiz.time_limit} min
-                              </span>
-                            </div>
-                          )}
-
-                          {quiz.max_attempts > 0 && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                                <span className="text-purple-600 font-semibold">
-                                  {quiz.max_attempts}
-                                </span>
-                              </div>
-                              <span className="text-muted-foreground">Tentatives</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <Button
-                          onClick={() => handleStartQuiz(quiz.id)}
-                          className="w-full"
-                          size="lg"
-                        >
-                          <Play className="w-4 h-4 mr-2" />
-                          Commencer le quiz
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+             
 
               {loadingQuizzes && (
                 <div className="mt-12 flex items-center justify-center">

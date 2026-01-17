@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { Quiz, Question, QuestionType, UserAnswer } from '@/types/course';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { 
-  CheckCircle, 
-  XCircle, 
-  ArrowRight, 
+import {
+  CheckCircle,
+  XCircle,
+  ArrowRight,
   ArrowLeft,
   Clock,
   Award,
@@ -32,8 +32,8 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
   const handleSelectAnswer = (answer: string) => {
     if (isSubmitted) return;
 
-    if (question.type === QuestionType.MULTIPLE_CHOICE && 
-        Array.isArray(question.correctAnswer)) {
+    if (question.type === QuestionType.MULTIPLE_CHOICE &&
+      Array.isArray(question.correctAnswer)) {
       // Questions à choix multiples
       const current = Array.isArray(selectedAnswer) ? selectedAnswer : [];
       if (current.includes(answer)) {
@@ -47,19 +47,18 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
     }
   };
 
-  const checkAnswer = (userAns: string | string[], correctAns: string | string[]): boolean => {
-    console.log('🔍 Vérification réponse:', { userAns, correctAns });
-    
-    if (Array.isArray(correctAns)) {
-      if (!Array.isArray(userAns)) return false;
-      return correctAns.length === userAns.length && 
-             correctAns.every(a => userAns.includes(a));
-    }
-    
-    const isCorrect = userAns === correctAns;
-    console.log(`✅ Réponse ${isCorrect ? 'correcte' : 'incorrecte'}`);
-    return isCorrect;
-  };
+  const checkAnswer = (userAns: string | string[], question: Question): boolean => {
+  // Trouver l'option qui correspond au texte sélectionné
+  const selectedOption = question.options?.find(opt => opt.text === userAns);
+  
+  // Si l'option existe et qu'elle a une propriété isCorrect, on l'utilise
+  if (selectedOption && selectedOption.isCorrect !== undefined) {
+    return selectedOption.isCorrect;
+  }
+
+  // Sinon, fallback sur la comparaison classique
+  return userAns === question.correctAnswer;
+};
 
   const handleSubmitAnswer = () => {
     if (!selectedAnswer || (Array.isArray(selectedAnswer) && selectedAnswer.length === 0)) {
@@ -67,7 +66,7 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
       return;
     }
 
-    const isCorrect = checkAnswer(selectedAnswer, question.correctAnswer);
+    const isCorrect = checkAnswer(selectedAnswer, question);
     const pointsEarned = isCorrect ? question.points : 0;
 
     const answer: UserAnswer = {
@@ -82,53 +81,36 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
     setIsSubmitted(true);
   };
 
+
   const handleNextQuestion = () => {
     if (currentQuestion < quiz.questions.length - 1) {
-      // Passer à la question suivante
+      // Passage à la question suivante
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
       setIsSubmitted(false);
     } else {
-      // ✅ CORRECTION CRITIQUE: Calculer le score AVANT d'appeler onComplete
-      
-      // Ajouter la dernière réponse
-      const isCorrect = checkAnswer(selectedAnswer!, question.correctAnswer);
-      const pointsEarned = isCorrect ? question.points : 0;
-      
-      const lastAnswer: UserAnswer = {
-        questionId: question.id,
-        userAnswer: selectedAnswer!,
-        isCorrect,
-        pointsEarned,
-      };
-      
-      // Toutes les réponses incluant la dernière
-      const allAnswers = [...userAnswers, lastAnswer];
-      
-      console.log('📊 Calcul du score final...');
-      console.log('Toutes les réponses:', allAnswers);
-      
-      // Calculer le total des points obtenus
-      const totalPoints = allAnswers.reduce((sum, a) => {
-        console.log(`Question ${a.questionId}: ${a.pointsEarned} points (${a.isCorrect ? '✅' : '❌'})`);
-        return sum + a.pointsEarned;
-      }, 0);
-      
-      // Calculer le total des points possibles
+      // --- LOGIQUE DE FIN DE QUIZ ---
+
+      // 1. On utilise les réponses déjà validées dans userAnswers
+      // (Puisque l'utilisateur doit cliquer sur "Valider" avant de voir le bouton "Terminer")
+      const finalAnswersList = userAnswers;
+
+      // 2. Calcul des points basé sur les réponses validées
+      const totalPoints = finalAnswersList.reduce((sum, a) => sum + a.pointsEarned, 0);
       const maxPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
-      
-      // Calculer le pourcentage
-      const score = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
-      
-      console.log('✅ Score calculé:', {
-        totalPoints,
-        maxPoints,
-        score: `${score}%`,
-        answers: allAnswers.length
+
+      // 3. Calcul du pourcentage
+      const finalScorePercent = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
+
+      console.log('🏁 Fin du quiz - Calcul final:', {
+        points: totalPoints,
+        total: maxPoints,
+        pourcentage: finalScorePercent,
+        reponses: finalAnswersList
       });
-      
-      // Appeler onComplete avec le score et toutes les réponses
-      onComplete(score, allAnswers);
+
+      // 4. Envoi au parent (QuizPage)
+      onComplete(finalScorePercent, finalAnswersList);
     }
   };
 
@@ -185,8 +167,8 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
         {/* Image/Media si présent */}
         {question.media && (
           <div className="mb-6">
-            <img 
-              src={question.media.url} 
+            <img
+              src={question.media.url}
               alt="Question media"
               className="w-full rounded-lg max-h-64 object-cover"
             />
@@ -204,7 +186,7 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
         <div className="space-y-3 mb-6">
           {question.options?.map((option, index) => {
             const optionValue = option.text;
-            const isSelected = Array.isArray(selectedAnswer) 
+            const isSelected = Array.isArray(selectedAnswer)
               ? selectedAnswer.includes(optionValue)
               : selectedAnswer === optionValue;
             const isCorrect = option.isCorrect;
@@ -214,28 +196,26 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
             return (
               <button
                 key={option.id}
-                className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                  showCorrect
+                className={`w-full p-4 rounded-xl border-2 text-left transition-all ${showCorrect
                     ? 'border-success bg-success/10'
                     : showIncorrect
-                    ? 'border-destructive bg-destructive/10'
-                    : isSelected
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                }`}
+                      ? 'border-destructive bg-destructive/10'
+                      : isSelected
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                  }`}
                 onClick={() => handleSelectAnswer(optionValue)}
                 disabled={isSubmitted}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    showCorrect
+                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${showCorrect
                       ? 'border-success bg-success text-success-foreground'
                       : showIncorrect
-                      ? 'border-destructive bg-destructive text-destructive-foreground'
-                      : isSelected
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-muted-foreground/30'
-                  }`}>
+                        ? 'border-destructive bg-destructive text-destructive-foreground'
+                        : isSelected
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-muted-foreground/30'
+                    }`}>
                     {showCorrect ? (
                       <CheckCircle className="w-4 h-4" />
                     ) : showIncorrect ? (
@@ -280,7 +260,7 @@ export function QuizComponent({ quiz, onComplete, onCancel }: QuizComponentProps
                 Annuler
               </Button>
             )}
-            
+
             {!isSubmitted ? (
               <Button onClick={handleSubmitAnswer} disabled={!selectedAnswer}>
                 Valider

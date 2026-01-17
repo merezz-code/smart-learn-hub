@@ -34,23 +34,23 @@ export default function QuizPage() {
     try {
       setLoading(true);
       console.log('🔍 Chargement du quiz ID:', quizId);
-      
+
       const quizData = await courseService.getQuizById(quizId);
-      
+
       if (!quizData) {
         throw new Error('Quiz non trouvé');
       }
-      
+
       console.log('✅ Quiz chargé:', quizData);
       console.log('📝 Nombre de questions:', quizData.questions?.length || 0);
-      
+
       // ✅ VÉRIFICATION CRITIQUE
       if (!quizData.questions || quizData.questions.length === 0) {
         toast.error('Ce quiz ne contient aucune question');
         navigate(-1);
         return;
       }
-      
+
       setQuiz(quizData);
 
       // Charger les tentatives précédentes
@@ -71,48 +71,46 @@ export default function QuizPage() {
       setLoading(false);
     }
   };
+  const handleQuizFinish = async (finalScore: number, answers: UserAnswer[]) => {
+  if (!quiz || !user) return;
 
-  const handleQuizComplete = async (finalScore: number, answers: UserAnswer[]) => {
-    if (!quiz || !user) return;
-
-    setScore(finalScore);
-    setUserAnswers(answers);
-    setShowResult(true);
-
-    // Sauvegarder les résultats
+  try {
+    // 1. Préparation des données (payload)
     const totalPoints = answers.reduce((sum, a) => sum + a.pointsEarned, 0);
     const maxPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
-    const passed = finalScore >= quiz.passingScore;
 
-    const result = {
-      id: crypto.randomUUID(),
+    const resultPayload = {
       userId: user.id,
-      quizId: quiz.id,
+      quizId: quizId,
       courseId: quiz.courseId,
       score: finalScore,
       points: totalPoints,
       totalPoints: maxPoints,
-      passed,
-      attemptNumber,
-      answers,
-      startedAt: new Date(),
-      completedAt: new Date(),
-      timeSpent: 0,
+      passed: finalScore >= quiz.passingScore,
+      answers: answers,
+      completedAt: new Date().toISOString()
     };
 
-    try {
-      await courseService.saveQuizResult(result);
-      
-      if (passed) {
-        toast.success('🎉 Quiz réussi ! Félicitations !');
-      } else {
-        toast.error(`Score insuffisant. Minimum requis: ${quiz.passingScore}%`);
-      }
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde résultats:', error);
-      toast.error('Erreur lors de la sauvegarde des résultats');
-    }
-  };
+    // 2. Sauvegarde en base de données (votre service)
+    await courseService.saveQuizResult(resultPayload);
+    toast.success("Résultats enregistrés !");
+
+    // 3. Mise à jour de l'état UI pour afficher la page de résultats
+    setScore(finalScore);
+    setUserAnswers(answers);
+    setShowResult(true); // <--- C'est cette ligne qui déclenche le passage à la page de résultat
+
+  } catch (error) {
+    console.error("❌ Erreur lors de la sauvegarde:", error);
+    toast.error("Erreur lors de la sauvegarde du score.");
+    
+    // Optionnel : afficher quand même les résultats même si la sauvegarde a échoué
+    setScore(finalScore);
+    setUserAnswers(answers);
+    setShowResult(true);
+  }
+};
+
 
   const handleRestart = () => {
     setShowResult(false);
@@ -178,9 +176,8 @@ export default function QuizPage() {
             </button>
 
             <div className="card-base p-8 text-center">
-              <div className={`w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center ${
-                passed ? 'bg-success/10' : 'bg-destructive/10'
-              }`}>
+              <div className={`w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center ${passed ? 'bg-success/10' : 'bg-destructive/10'
+                }`}>
                 {passed ? (
                   <Trophy className="w-10 h-10 text-success" />
                 ) : (
@@ -192,7 +189,7 @@ export default function QuizPage() {
                 {passed ? 'Félicitations ! 🎉' : 'Continuez à apprendre !'}
               </h1>
               <p className="text-muted-foreground mb-6">
-                {passed 
+                {passed
                   ? 'Vous avez réussi le quiz avec brio !'
                   : `Vous devez obtenir au moins ${quiz.passingScore}% pour réussir.`}
               </p>
@@ -217,7 +214,7 @@ export default function QuizPage() {
 
               {quiz.maxAttempts && (
                 <p className="text-sm text-muted-foreground mb-6">
-                  Tentative {attemptNumber} 
+                  Tentative {attemptNumber}
                   {quiz.maxAttempts && ` sur ${quiz.maxAttempts}`}
                 </p>
               )}
@@ -302,7 +299,7 @@ export default function QuizPage() {
 
           <QuizComponent
             quiz={quiz}
-            onComplete={handleQuizComplete}
+            onComplete={handleQuizFinish}
             onCancel={handleBackToCourse}
           />
         </div>
