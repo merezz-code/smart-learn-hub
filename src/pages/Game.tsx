@@ -219,6 +219,49 @@ export default function Game() {
                     <li>• MPM = Mots Par Minute</li>
                   </ul>
                 )}
+                {selectedGame === 'quiz' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Répondez aux questions techniques</li>
+                    <li>• Tapez votre réponse dans le champ</li>
+                    <li>• Chaque bonne réponse augmente votre score</li>
+                  </ul>
+                )}
+                {selectedGame === 'fastclick' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Cliquez le plus rapidement possible sur le bouton</li>
+                    <li>• Vous avez 10 secondes pour faire le meilleur score</li>
+                    <li>• Testez votre vitesse de réaction !</li>
+                  </ul>
+                )}
+                {selectedGame === 'mathrace' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Résolvez l'addition affichée</li>
+                    <li>• Tapez le résultat dans le champ</li>
+                    <li>• Validez pour vérifier votre réponse</li>
+                  </ul>
+                )}
+                {selectedGame === 'algoTower' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Lisez le code affiché attentivement</li>
+                    <li>• Cliquez sur le résultat correct de l'exécution</li>
+                    <li>• Passez au niveau suivant après chaque bonne réponse</li>
+                  </ul>
+                )}
+                {selectedGame === 'binaryPuzzle' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Cliquez sur les cases pour changer entre 0 et 1</li>
+                    <li>• Remplissez toute la grille pour gagner</li>
+                    <li>• Attention aux règles du puzzle binaire !</li>
+                    <li>• Pas 3 de suite - Vous ne pouvez JAMAIS avoir trois 0 ou trois 1 côte à côte (ni horizontal, ni vertical)</li>
+                  </ul>
+                )}
+                {selectedGame === 'logicMaze' && (
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Utilisez les flèches pour déplacer votre personnage</li>
+                    <li>• Évitez les obstacles rouges</li>
+                    <li>• Atteignez la sortie verte pour gagner</li>
+                  </ul>
+                )}
               </div>
             </>
           ) : (

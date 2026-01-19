@@ -5,17 +5,44 @@ import { toast } from 'sonner';
 import { Trophy, Clock, RotateCcw, Zap, CheckCircle, XCircle, Lightbulb } from 'lucide-react';
 
 const techWords = [
-  { word: 'PYTHON', hint: 'Langage de programmation populaire 🐍' },
-  { word: 'REACT', hint: 'Bibliothèque JavaScript pour les interfaces' },
-  { word: 'DATABASE', hint: 'Stockage structuré de données' },
-  { word: 'ALGORITHM', hint: 'Suite d\'instructions pour résoudre un problème' },
-  { word: 'VARIABLE', hint: 'Conteneur pour stocker une valeur' },
-  { word: 'FUNCTION', hint: 'Bloc de code réutilisable' },
-  { word: 'MACHINE', hint: '_ Learning - Intelligence artificielle' },
-  { word: 'NETWORK', hint: 'Ensemble d\'ordinateurs connectés' },
-  { word: 'SECURITY', hint: 'Protection des systèmes informatiques' },
-  { word: 'CLOUD', hint: 'Services informatiques via Internet' },
+  // --- Langages & Web ---
+  { word: 'TYPESCRIPT', hint: 'JavaScript avec des types statiques 🛡️' },
+  { word: 'JAVASCRIPT', hint: 'Le langage interactif du Web' },
+  { word: 'ANGULAR', hint: 'Framework Google pour applications robustes' },
+  { word: 'PHP', hint: 'Langage serveur utilisé par WordPress 🐘' },
+  
+  // --- Infrastructure & Cloud ---
+  { word: 'KUBERNETES', hint: 'Orchestration de conteneurs à grande échelle' },
+  { word: 'DOCKER', hint: 'Conteneurisation d\'applications 🐳' },
+  { word: 'FIREWALL', hint: 'Barrière de sécurité réseau 🧱' },
+  { word: 'BACKUP', hint: 'Sauvegarde de données en cas d\'incident' },
+  
+  // --- Data & IA ---
+  { word: 'BIGDATA', hint: 'Traitement de volumes massifs de données' },
+  { word: 'PYTHON', hint: 'Le langage roi pour la Data Science 🐍' },
+  { word: 'PYTORCH', hint: 'Framework populaire pour le Deep Learning' },
+  { word: 'QUERY', hint: 'Requête envoyée à une base de données' },
+  
+  // --- Développement ---
+  { word: 'DEBUGGING', hint: 'Action de traquer et corriger les bugs 🐛' },
+  { word: 'COMPILER', hint: 'Traduit le code source en langage machine' },
+  { word: 'INTERFACE', hint: 'Le "I" dans API' },
+  { word: 'FRONTEND', hint: 'La partie visible d\'un site web' },
+  { word: 'BACKEND', hint: 'La logique serveur et base de données' },
+  
+  // --- Matériel & Réseau ---
+  { word: 'PROCESSOR', hint: 'Le cerveau matériel de l\'ordinateur' },
+  { word: 'ETHERNET', hint: 'Standard de connexion réseau filaire' },
+  { word: 'MOTHERBOARD', hint: 'Carte maîtresse reliant tous les composants' },
+  { word: 'FIRMWARE', hint: 'Logiciel ancré directement dans le matériel' },
+
+  // --- Sécurité ---
+  { word: 'PHISHING', hint: 'Tentative d\'escroquerie par email 🎣' },
+  { word: 'ENCRYPTION', hint: 'Chiffrement des données pour les protéger' },
+  { word: 'PASSWORD', hint: 'Clé secrète d\'accès (doit être complexe !)' }
 ];
+
+const shuffledWords = [...techWords].sort(() => Math.random() - 0.5);
 
 function scrambleWord(word: string): string {
   const arr = word.split('');
@@ -38,7 +65,7 @@ export function WordScrambleGame() {
   const [showHint, setShowHint] = useState(false);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
 
-  const currentWord = techWords[currentWordIndex];
+  const currentWord = shuffledWords[currentWordIndex];
 
   const initializeGame = useCallback(() => {
     setCurrentWordIndex(0);
@@ -51,9 +78,9 @@ export function WordScrambleGame() {
     setGameStarted(true);
     setFeedback(null);
     
-    let scrambledWord = scrambleWord(techWords[0].word);
-    while (scrambledWord === techWords[0].word) {
-      scrambledWord = scrambleWord(techWords[0].word);
+    let scrambledWord = scrambleWord(shuffledWords[0].word);
+    while (scrambledWord === shuffledWords[0].word) {
+      scrambledWord = scrambleWord(shuffledWords[0].word);
     }
     setScrambled(scrambledWord);
   }, []);
@@ -79,16 +106,16 @@ export function WordScrambleGame() {
   }, [gameStarted, gameComplete, time]);
 
   const nextWord = useCallback(() => {
-    if (currentWordIndex < techWords.length - 1) {
+    if (currentWordIndex < shuffledWords.length - 1) {
       const nextIndex = currentWordIndex + 1;
       setCurrentWordIndex(nextIndex);
       setGuess('');
       setShowHint(false);
       setFeedback(null);
       
-      let scrambledWord = scrambleWord(techWords[nextIndex].word);
-      while (scrambledWord === techWords[nextIndex].word) {
-        scrambledWord = scrambleWord(techWords[nextIndex].word);
+      let scrambledWord = scrambleWord(shuffledWords[nextIndex].word);
+      while (scrambledWord === shuffledWords[nextIndex].word) {
+        scrambledWord = scrambleWord(shuffledWords[nextIndex].word);
       }
       setScrambled(scrambledWord);
     } else {
@@ -171,7 +198,7 @@ export function WordScrambleGame() {
         <div className="card-base p-6">
           <div className="text-center mb-6">
             <p className="text-sm text-muted-foreground mb-2">
-              Mot {currentWordIndex + 1} / {techWords.length}
+              Mot {currentWordIndex + 1} / {shuffledWords.length}
             </p>
             <div className={`text-4xl font-bold tracking-widest py-4 transition-colors ${
               feedback === 'correct' ? 'text-success' : 
