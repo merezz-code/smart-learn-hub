@@ -32,6 +32,7 @@ export function CourseCard({ course }: CourseCardProps) {
     [CourseCategory.MARKETING]: 'Marketing',
     [CourseCategory.BUSINESS]: 'Business',
     [CourseCategory.LANGUAGES]: 'Langues',
+    [CourseCategory.CYBER]: 'Cyber  Sécurité',
     [CourseCategory.OTHER]: 'Autre',
   };
 

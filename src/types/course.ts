@@ -22,6 +22,7 @@ export enum CourseCategory {
   MARKETING = "marketing",
   BUSINESS = "business",
   LANGUAGES = "languages",
+  CYBER = "cyber_security",
   OTHER = "other"
 }
 

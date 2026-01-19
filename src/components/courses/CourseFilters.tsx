@@ -52,6 +52,7 @@ export function CourseFilters({
     { value: CourseCategory.MARKETING, label: 'Marketing' },
     { value: CourseCategory.BUSINESS, label: 'Business' },
     { value: CourseCategory.LANGUAGES, label: 'Langues' },
+    { value: CourseCategory.CYBER, label: 'Cyber Sécurité' },
   ];
 
   const levels = [

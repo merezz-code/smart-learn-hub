@@ -552,6 +552,7 @@ function CourseFormModal({ course, onSave, onClose }: CourseFormModalProps) {
                 <option value="marketing">Marketing</option>
                 <option value="business">Business</option>
                 <option value="languages">Langues</option>
+                <option value="cyber_security">Cyber Sécurité</option>
                 <option value="other">Other</option>
               </select>
             </div>

@@ -1,4 +1,3 @@
-// src/pages/Dashboard.tsx
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,22 +16,17 @@ import {
   Play,
   Loader2,
 } from 'lucide-react';
-import { UserStats, UserCourseProgress, Course } from '@/types/course';
+import { UserStats, Course } from '@/types/course';
 import { courseService } from '@/lib/courseService';
 import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { user, isAuthenticated } = useAuth();
   const [stats, setStats] = useState<UserStats | null>(null);
-  const [enrolledCourses, setEnrolledCourses] = useState<(Course & { progress: UserCourseProgress })[]>([]);
+  const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  // 1. Ajoutez un état pour l'activité
   const [weeklyActivity, setWeeklyActivity] = useState<Record<number, number>>({});
 
-  // 2. Chargez la donnée dans loadDashboardData
- 
-
-  // 3. Modifiez le rendu de la section "Activité cette semaine"
   const days = [
     { label: 'L', index: 1 },
     { label: 'M', index: 2 },
@@ -51,31 +45,45 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     if (!user) return;
-
     try {
       setLoading(true);
+      const [userStats, activity, rawCourses] = await Promise.all([
+        courseService.getUserStats(user.id),
+        courseService.getWeeklyActivity(user.id),
+        courseService.getEnrolledCourses(user.id)
+      ]);
 
-      // Charger les statistiques
-      const userStats = await courseService.getUserStats(user.id);
       setStats(userStats);
+      setWeeklyActivity(activity);
 
-      // Charger les cours inscrits avec progression
-      const courses = await courseService.getEnrolledCourses(user.id);
-      setEnrolledCourses(courses);
-       const activity = await courseService.getWeeklyActivity(user.id);
-  setWeeklyActivity(activity);
+      // Déduplication et priorité aux cours complétés
+      const courseMap = new Map<number, any>();
+      rawCourses.forEach((item: any) => {
+        const existing = courseMap.get(item.id);
+        const isThisLineCompleted = item.progress.completed === 1 || item.progress.overallProgress === 100;
 
+        if (!existing || (isThisLineCompleted && !existing.isFullyCompleted)) {
+          courseMap.set(item.id, {
+            ...item,
+            isFullyCompleted: isThisLineCompleted
+          });
+        }
+      });
+
+      const finalCourses = Array.from(courseMap.values()).sort((a, b) =>
+        new Date(b.progress.lastAccessedAt).getTime() - new Date(a.progress.lastAccessedAt).getTime()
+      );
+
+      setEnrolledCourses(finalCourses);
     } catch (error) {
-      console.error('Erreur chargement dashboard:', error);
-      toast.error('Impossible de charger les données');
+      console.error('Erreur dashboard:', error);
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   if (loading) {
     return (
@@ -88,41 +96,11 @@ export default function Dashboard() {
   }
 
   const statsCards = [
-    {
-      icon: BookOpen,
-      label: 'Cours inscrits',
-      value: stats?.inProgressCourses || 0,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
-    },
-    {
-      icon: Trophy,
-      label: 'Cours terminés',
-      value: stats?.completedCourses || 0,
-      color: 'text-success',
-      bgColor: 'bg-success/10',
-    },
-    {
-      icon: Target,
-      label: 'Score moyen',
-      value: `${Math.round(stats?.averageScore || 0)}%`,
-      color: 'text-warning',
-      bgColor: 'bg-warning/10',
-    },
-    {
-      icon: Flame,
-      label: 'Série actuelle',
-      value: `${stats?.currentStreak || 0} j`,
-      color: 'text-destructive',
-      bgColor: 'bg-destructive/10',
-    },
+    { icon: BookOpen, label: 'Cours inscrits', value: stats?.inProgressCourses || 0, color: 'text-primary', bgColor: 'bg-primary/10' },
+    { icon: Trophy, label: 'Cours terminés', value: stats?.completedCourses || 0, color: 'text-success', bgColor: 'bg-success/10' },
+    { icon: Target, label: 'Score moyen', value: `${Math.round(stats?.averageScore || 0)}%`, color: 'text-warning', bgColor: 'bg-warning/10' },
+    { icon: Flame, label: 'Série actuelle', value: `${stats?.currentStreak || 0} j`, color: 'text-destructive', bgColor: 'bg-destructive/10' },
   ];
-
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}min` : `${mins}min`;
-  };
 
   return (
     <Layout>
@@ -131,13 +109,9 @@ export default function Dashboard() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">
-
               Bonjour, <span className="gradient-text">{user?.name || 'Apprenant'}</span> 👋
-
             </h1>
-            <p className="text-muted-foreground">
-              Continuez votre apprentissage où vous l'avez laissé
-            </p>
+            <p className="text-muted-foreground">Continuez votre apprentissage où vous l'avez laissé</p>
           </div>
 
           {/* Stats Grid */}
@@ -158,113 +132,74 @@ export default function Dashboard() {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Content */}
             <div className="lg:col-span-2 space-y-8">
               {/* Continue Learning */}
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold">Continuer l'apprentissage</h2>
                   <Link to="/courses">
                     <Button variant="ghost" size="sm">
-                      Voir tout
-                      <ArrowRight className="w-4 h-4 ml-1" />
+                      Voir tout <ArrowRight className="w-4 h-4 ml-1" />
                     </Button>
                   </Link>
                 </div>
 
                 {enrolledCourses.length > 0 ? (
-                  <div className="space-y-4">
-                    {enrolledCourses.sort((a, b) =>
-  new Date(b.progress.lastAccessedAt).getTime() -
-  new Date(a.progress.lastAccessedAt).getTime()
-).map((item) => (
-                      <Link key={item.id} to={`/course/${item.id}`}>
-                        <div className="card-interactive p-4 flex gap-4">
-                          <img
-                            src={item.thumbnail}
-                            alt={item.title}
-                            className="w-24 h-16 object-cover rounded-lg flex-shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium mb-1 truncate">{item.title}</h3>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {item.instructor || 'Instructeur'}
-                            </p>
-                            <div className="flex items-center gap-3">
-                              <Progress value={item.progress.overallProgress} className="flex-1 h-2" />
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {Math.round(item.progress.overallProgress)}%
-                              </span>
-                            </div>
-                          </div>
-                          <Button size="icon" variant="ghost" className="flex-shrink-0 self-center">
-                            <Play className="w-5 h-5" />
-                          </Button>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="card-base p-8 text-center">
-                    <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-semibold mb-2">Aucun cours en cours</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Explorez notre catalogue et commencez un nouveau cours
-                    </p>
-                    <Link to="/courses">
-                      <Button>Explorer les cours</Button>
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              {/* Weekly Activity */}
-              {/* <div>
-                <h2 className="text-xl font-semibold mb-4">Activité cette semaine</h2>
-                <div className="card-base p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-muted-foreground" />
-                      <span className="text-muted-foreground">Temps total</span>
-                    </div>
-                    <span className="text-2xl font-bold">
-                      {formatTime(stats?.totalTimeSpent || 0)}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-2">
-                    {days.map((day) => {
-                      const minutes = weeklyActivity[day.index] || 0;
-                      // On définit l'intensité de la couleur selon le temps (ex: max 120min)
-                      const intensity = Math.min(minutes / 120 * 100, 100);
-
+                  <div className="flex flex-col gap-6"> {/* Espacement entre les cours */}
+                    {enrolledCourses.map((item) => {
+                      const displayProgress = item.isFullyCompleted ? 100 : item.progress.overallProgress;
                       return (
-                        <div key={day.label} className="text-center">
-                          <div
-                            className={`w-full aspect-square rounded-lg mb-1 transition-all ${intensity > 70 ? 'gradient-bg' :
-                                intensity > 30 ? 'bg-primary/40' :
-                                  intensity > 0 ? 'bg-primary/20' : 'bg-muted'
-                              }`}
-                            title={`${day.label} - ${minutes} min passées`}
-                          />
-                          <span className="text-xs text-muted-foreground">{day.label}</span>
-                        </div>
+                        <Link key={item.id} to={`/course/${item.id}`} className="block group">
+                          <div className="card-interactive p-5 flex gap-6 items-center border border-transparent hover:border-primary/20 transition-all shadow-sm">
+                            <div className="relative w-32 h-20 flex-shrink-0 overflow-hidden rounded-xl">
+                              <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              {item.isFullyCompleted && (
+                                <div className="absolute inset-0 bg-success/20 flex items-center justify-center">
+                                  <Trophy className="w-6 h-6 text-white" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start mb-1">
+                                <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors">{item.title}</h3>
+                                {item.isFullyCompleted && (
+                                  <span className="bg-success/10 text-success text-[10px] font-bold px-2 py-1 rounded">TERMINE</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-3">{item.instructor || 'Instructeur'}</p>
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between text-xs font-medium">
+                                  <span>Progression</span>
+                                  <span>{Math.round(displayProgress)}%</span>
+                                </div>
+                                <Progress value={displayProgress} className="h-2" />
+                              </div>
+                            </div>
+                            <Button size="icon" variant="secondary" className="rounded-full group-hover:bg-primary group-hover:text-white transition-colors">
+                              <Play className="w-4 h-4 fill-current" />
+                            </Button>
+                          </div>
+                        </Link>
                       );
                     })}
                   </div>
-                </div>
-              </div> */}
+                ) : (
+                  <div className="card-base p-12 text-center">
+                    <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-semibold mb-2">Aucun cours en cours</h3>
+                    <Link to="/courses"><Button className="mt-2">Explorer les cours</Button></Link>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Progress Overview */}
               <div className="card-base p-6">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  Progression globale
+                  <TrendingUp className="w-5 h-5 text-primary" /> Progression globale
                 </h3>
-
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between text-sm mb-1">
@@ -273,18 +208,12 @@ export default function Dashboard() {
                     </div>
                     <Progress value={stats?.averageScore || 0} className="h-2" />
                   </div>
-
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-muted-foreground">Cours complétés</span>
-                      <span className="font-medium">
-                        {stats?.completedCourses || 0} / {stats?.totalCourses || 0}
-                      </span>
+                      <span className="font-medium">{stats?.completedCourses || 0} / {stats?.totalCourses || 0}</span>
                     </div>
-                    <Progress
-                      value={stats?.totalCourses ? (stats.completedCourses / stats.totalCourses * 100) : 0}
-                      className="h-2"
-                    />
+                    <Progress value={stats?.totalCourses ? (stats.completedCourses / stats.totalCourses * 100) : 0} className="h-2" />
                   </div>
                 </div>
               </div>
@@ -293,54 +222,18 @@ export default function Dashboard() {
               {stats?.badges && stats.badges.length > 0 && (
                 <div className="card-base p-6">
                   <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Award className="w-5 h-5 text-warning" />
-                    Badges obtenus
+                    <Award className="w-5 h-5 text-warning" /> Badges obtenus
                   </h3>
-
                   <div className="grid grid-cols-3 gap-3">
-                    {stats.badges.slice(0, 6).map((userBadge) => (
-                      <div
-                        key={userBadge.id}
-                        className="text-center p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                        title={userBadge.badge.description}
-                      >
+                    {stats.badges.slice(0, 6).map((userBadge: any) => (
+                      <div key={userBadge.id} className="text-center p-2 rounded-lg bg-muted/50" title={userBadge.badge.description}>
                         <span className="text-2xl">{userBadge.badge.icon}</span>
-                        <p className="text-xs font-medium mt-1 truncate">
-                          {userBadge.badge.name}
-                        </p>
+                        <p className="text-[10px] font-medium mt-1 truncate">{userBadge.badge.name}</p>
                       </div>
                     ))}
                   </div>
-
-                  {stats.badges.length > 6 && (
-                    <Button variant="ghost" size="sm" className="w-full mt-3">
-                      Voir tous les badges ({stats.badges.length})
-                    </Button>
-                  )}
                 </div>
               )}
-
-              {/* Quick Actions */}
-              <div className="card-base p-6">
-                <h3 className="font-semibold mb-4">Actions rapides</h3>
-                <div className="space-y-2">
-                  <Link to="/game" className="block">
-                    <Button variant="outline" className="w-full justify-start">
-                      🎮 Jouer au mini-jeu
-                    </Button>
-                  </Link>
-                  <Link to="/chat" className="block">
-                    <Button variant="outline" className="w-full justify-start">
-                      🤖 Poser une question à l'IA
-                    </Button>
-                  </Link>
-                  <Link to="/courses" className="block">
-                    <Button variant="outline" className="w-full justify-start">
-                      📚 Explorer les cours
-                    </Button>
-                  </Link>
-                </div>
-              </div>
             </div>
           </div>
         </div>
