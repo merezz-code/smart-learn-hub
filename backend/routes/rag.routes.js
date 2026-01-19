@@ -1,6 +1,6 @@
 import express from "express";
 import { answerQuestion } from "../rag/query.js";
-import { clearCache } from "../rag/vectorStore.js";
+import { indexCourses } from "../rag/indexer.js";
 
 const router = express.Router();
 
@@ -76,6 +76,22 @@ router.get("/status", (req, res) => {
     model: "gemini-pro",
     embeddingModel: "text-embedding-004"
   });
+});
+router.post("/refresh", async (req, res) => {
+  try {
+    console.log("🔄 Ré-indexation des cours demandée...");
+    
+    // Au lieu de vider un cache, on relance le processus d'indexation
+    await indexCourses(); 
+    
+    res.json({ 
+      message: "Base vectorielle mise à jour avec succès",
+      info: "Le dossier faiss_index a été régénéré à partir des derniers cours en base SQL."
+    });
+  } catch (err) {
+    console.error("❌ Erreur lors de la mise à jour FAISS:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

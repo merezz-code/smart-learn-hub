@@ -1,40 +1,34 @@
-import { Chroma } from "langchain/vectorstores/chroma";
-import { OpenAIEmbeddings } from "@langchain/openai";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-
+import { FaissStore } from "@langchain/community/vectorstores/faiss"; // Nom corrigé
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { getAllCourses } from "../services/course.service.js";
+import path from "path";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export async function indexCourses() {
+  console.log("🚀 Début de l'indexation avec FaissStore...");
   const courses = await getAllCourses();
-
+  
   const documents = courses.map(course => ({
-    pageContent: `
-      Titre : ${course.title}
-      Module : ${course.module}
-      Niveau : ${course.level}
-
-      Contenu :
-      ${course.content}
-    `,
-    metadata: {
-      courseId: course.id,
-      title: course.title,
-      module: course.module
-    }
+    pageContent: `Titre : ${course.course_title}\nContenu : ${course.content}`,
+    metadata: { title: course.course_title }
   }));
 
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 400,
-    chunkOverlap: 50,
-  });
-
+  const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 500, chunkOverlap: 50 });
   const chunks = await splitter.splitDocuments(documents);
 
-  await Chroma.fromDocuments(
-    chunks,
-    new OpenAIEmbeddings(),
-    { collectionName: "smartlearn-courses" }
-  );
+  const embeddings = new GoogleGenerativeAIEmbeddings({
+    apiKey: process.env.GOOGLE_API_KEY,
+    modelName: "text-embedding-004",
+  });
 
-  console.log("✅ Cours indexés depuis la base de données");
+  // Utilisation du nouveau nom FaissStore
+  const vectorStore = await FaissStore.fromDocuments(chunks, embeddings);
+  
+  const directory = path.resolve("./faiss_index");
+  await vectorStore.save(directory);
+
+  console.log(`✅ Base FAISS créée avec succès dans : ${directory}`);
 }
